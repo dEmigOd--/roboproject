@@ -1,0 +1,56 @@
+#pragma once
+
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <fstream>
+#include <string>
+#include <vector>
+#define NOMINMAX
+#include "opencv2/core/core.hpp"
+
+#define CREATE_ENUM(name, ...) enum class name { __VA_ARGS__, __COUNT}; \
+inline std::ostream& operator<<(std::ostream& os, name value) { \
+std::string enumName = #name; \
+std::string str = #__VA_ARGS__; \
+int len = str.length(); \
+std::vector<std::string> strings; \
+std::ostringstream temp; \
+for(int i = 0; i < len; i ++) { \
+if(isspace(str[i])) continue; \
+        else if(str[i] == ',') { \
+        strings.push_back(temp.str()); \
+        temp.str(std::string());\
+        } \
+        else temp<< str[i]; \
+} \
+strings.push_back(temp.str()); \
+os << enumName << "::" << strings[static_cast<int>(value)]; \
+return os;} 
+
+template <typename E>
+constexpr typename std::underlying_type<E>::type to_underlying(E e)
+{
+	return static_cast<typename std::underlying_type<E>::type>(e);
+}
+
+#define TOHUMANREADABLE(name) #name
+
+inline std::string PadWithZeroes(int num, int n_zero)
+{
+	std::stringstream ss;
+	ss << std::setw(n_zero) << std::setfill('0') << num;
+	return ss.str();
+}
+
+inline void WriteCSV(std::string filename, const cv::Mat& m)
+{
+	std::ofstream myfile(filename.c_str());
+#if CV_VERSION_MAJOR < 3
+	cv::Formatter const * c_formatter(cv::Formatter::get("MATLAB"));
+	c_formatter->write(myfile, m);
+#else
+	myfile << cv::format(m, cv::Formatter::FMT_MATLAB) << std::endl;
+#endif
+}
+

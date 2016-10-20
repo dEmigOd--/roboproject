@@ -1,0 +1,55 @@
+﻿  C:\Users\dmitry.ra\Desktop\Studies\Articles\HighSpeedNavigation\libconfig-1.5\x64\Debug\libconfig++_d.dll
+          1 file(s) copied.
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_annotationd.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_calib3d310d.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_core310d.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_createsamplesd.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_features2d310d.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_flann310d.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_highgui310d.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_imgcodecs310d.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_imgproc310.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_imgproc310d.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_ml310d.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_objdetect310d.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_perf_calib3dd.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_perf_cored.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_perf_features2dd.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_perf_imgcodecsd.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_perf_imgprocd.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_perf_objdetectd.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_perf_photod.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_perf_stitchingd.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_perf_superresd.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_perf_videod.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_perf_videoiod.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_photo310d.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_shape310d.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_stitching310d.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_superres310d.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_test_calib3dd.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_test_cored.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_test_features2dd.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_test_flannd.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_test_highguid.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_test_imgcodecsd.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_test_imgprocd.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_test_mld.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_test_objdetectd.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_test_photod.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_test_shaped.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_test_stitchingd.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_test_superresd.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_test_videod.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_test_videoiod.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_traincascaded.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_video310d.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_videoio310d.pdb
+  C:\Users\dmitry.ra\Documents\opencv-master\build\bin\Debug\opencv_videostab310d.pdb
+         46 file(s) copied.
+  main2.cpp
+c:\users\dmitry.ra\desktop\studies\spring 2015-2016\236754\obstacleavoidance\obstacleavoidance\easylogging++.h(973): warning C4800: 'BOOL': forcing value to bool 'true' or 'false' (performance warning)
+  RobotManeuver.cpp
+c:\users\dmitry.ra\desktop\studies\spring 2015-2016\236754\obstacleavoidance\obstacleavoidance\easylogging++.h(973): warning C4800: 'BOOL': forcing value to bool 'true' or 'false' (performance warning)
+  Generating Code...
+  ObstacleAvoidance.vcxproj -> C:\Users\dmitry.ra\Desktop\Studies\Spring 2015-2016\236754\ObstacleAvoidance\x64\Debug\ObstacleAvoidance.exe

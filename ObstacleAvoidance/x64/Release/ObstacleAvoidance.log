@@ -1,0 +1,16 @@
+﻿  C:\Users\dmitry.ra\Desktop\Studies\Articles\HighSpeedNavigation\libconfig-1.5\x64\Release\libconfig++.dll
+          1 file(s) copied.
+  Disparity.cpp
+  Logger.cpp
+  main2.cpp
+  pwm.cpp
+  RobotController.cpp
+  RobotManeuver.cpp
+  RobotVision.cpp
+RobotVision.cpp(105): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+RobotVision.cpp(107): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+  Generating code
+c:\users\dmitry.ra\desktop\studies\spring 2015-2016\236754\obstacleavoidance\obstacleavoidance\disparity.cpp(66): warning C4723: potential divide by 0
+  All 4150 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  ObstacleAvoidance.vcxproj -> C:\Users\dmitry.ra\Desktop\Studies\Spring 2015-2016\236754\ObstacleAvoidance\x64\Release\ObstacleAvoidance.exe
