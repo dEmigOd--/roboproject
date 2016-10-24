@@ -39,7 +39,7 @@ int RobotController::GetNewTurningSpeed(TurningAngle angle)
 	switch (angle)
 	{
 		case RobotController::REGULAR:
-			newSpeed = (int)(params.speed / RobotController::SLOWING_RATE);
+			newSpeed = (int)(params.speed / params.spinMultiplierOnTurns);
 			break;
 		case RobotController::TURBO:
 			newSpeed = -params.speed;
@@ -68,8 +68,8 @@ void RobotController::SetNewWheelSpeed(int leftSpeed, int rightSpeed)
 	p->enable(RobotController::LEFT_WHEELS, ENABLE);
 	p->enable(RobotController::RIGHT_WHEELS, ENABLE);
 
-	p->set_freq(RobotController::LEFT_WHEELS, FREQ);
-	p->set_freq(RobotController::RIGHT_WHEELS, FREQ);
+	//p->set_freq(RobotController::LEFT_WHEELS, FREQ);
+	//p->set_freq(RobotController::RIGHT_WHEELS, FREQ);
 
 	p->set_duty_cycle(RobotController::LEFT_WHEELS, leftSpeed);
 	p->set_duty_cycle(RobotController::RIGHT_WHEELS, rightSpeed);

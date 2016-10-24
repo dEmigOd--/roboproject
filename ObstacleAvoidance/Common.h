@@ -62,9 +62,10 @@ public:
 	bool debugMath = false;
 	int numToRecord = MAX_RECORD;
 
-	const static int MAX_ACHIEVABLE_SPEED = 128;
 	int speed = 100;
-	double speedUnitInMm = 10.0;
+	double speedUnitInMm = 7.0;
+
+	double spinMultiplierOnTurns = 4.0;
 
 	int AcceptableDepthOffset = 2;
 
@@ -89,8 +90,7 @@ public:
 
 	std::string wrkDir = "";
 
-	int nBlockSize = 3;
-	int mapBlocksize = 5;
+	int nBlockSize = 15;
 
 	int GetHorizonHeight() const
 	{

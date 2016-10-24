@@ -3,6 +3,18 @@
 el::Logger* RobotManeuver::creatorLogger = el::Loggers::getLogger("Maneuver-ADD");
 el::Logger* RobotManeuver::workerLogger = el::Loggers::getLogger("Maneuver-EXE");
 
+bool inManeuver = false;
+
+void StartManeuver()
+{
+	inManeuver = true;
+}
+
+void FinishManeuver()
+{
+	inManeuver = false;
+}
+
 void RobotManeuver::CommandLoop()
 {
 	while (active)
@@ -37,6 +49,7 @@ void RobotManeuver::AddCommand(Cmd cmd, bool exclusive)
 
 		if (exclusive)
 		{
+			FinishManeuver();
 			commands = std::queue<Cmd>();
 		}
 
@@ -45,6 +58,11 @@ void RobotManeuver::AddCommand(Cmd cmd, bool exclusive)
 	}
 	// notify the queue
 	waitForWork.notify_one();
+}
+
+void RobotManeuver::Separator(CmdPtr cmd)
+{
+	AddCommand(Cmd("FINISH MANEUVER", cmd));
 }
 
 void RobotManeuver::CoolDown(int magicMilis)
@@ -66,22 +84,29 @@ void RobotManeuver::CoolDown(int magicMilis)
 
 void RobotManeuver::Maneuver(CmdFunc firstFunc, CmdFunc secondFunc)
 {
-	(this->*firstFunc)();
-	CoolDown(200);
+	if (!inManeuver) 
+	{
+		Separator(StartManeuver);
 
-	Forward();
-	CoolDown(380);
+		(this->*firstFunc)();
+		CoolDown(200);
 
-	(this->*secondFunc)();
-	CoolDown(400);
+		Forward();
+		CoolDown(380);
 
-	Forward();
-	CoolDown(380);
+		(this->*secondFunc)();
+		CoolDown(400);
 
-	(this->*firstFunc)();
-	CoolDown(200);
+		Forward();
+		CoolDown(380);
 
-	Forward();
+		(this->*firstFunc)();
+		CoolDown(200);
+
+		Forward();
+
+		Separator(FinishManeuver);
+	}
 }
 
 void RobotManeuver::Maneuver2(CmdFunc firstFunc, CmdFunc secondFunc)
@@ -91,28 +116,35 @@ void RobotManeuver::Maneuver2(CmdFunc firstFunc, CmdFunc secondFunc)
 	
 	navigator.DetectSafeTurningParameters(turningTime, slopeMovementTime, forwardTime);
 
-	(this->*firstFunc)();
-	CoolDown(turningTime);
+	if (!inManeuver)
+	{
+		Separator(StartManeuver);
 
-	Forward();
-	CoolDown(slopeMovementTime);
+		(this->*firstFunc)();
+		CoolDown(turningTime);
 
-	(this->*secondFunc)();
-	CoolDown(turningTime);
+		Forward();
+		CoolDown(slopeMovementTime);
 
-	Forward();
-	CoolDown(forwardTime);
+		(this->*secondFunc)();
+		CoolDown(turningTime);
 
-	(this->*secondFunc)();
-	CoolDown(turningTime);
+		Forward();
+		CoolDown(forwardTime);
 
-	Forward();
-	CoolDown(slopeMovementTime);
+		(this->*secondFunc)();
+		CoolDown(turningTime);
 
-	(this->*firstFunc)();
-	CoolDown(turningTime);
+		Forward();
+		CoolDown(slopeMovementTime);
 
-	Forward();
+		(this->*firstFunc)();
+		CoolDown(turningTime);
+
+		Forward();
+
+		Separator(FinishManeuver);
+	}
 }
 
 RobotManeuver::RobotManeuver(RunningParameters& params)

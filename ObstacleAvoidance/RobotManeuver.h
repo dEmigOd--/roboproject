@@ -42,9 +42,11 @@ class RobotManeuver
 	ObstacleAvoider navigator;
 	RunningParameters& params;
 	typedef void (RobotManeuver::*CmdFunc)();
+	// both return evaluated time of action in milliseconds
 	void Maneuver(CmdFunc firstFunc,CmdFunc secondFunc);
 	void Maneuver2(CmdFunc firstFunc,CmdFunc secondFunc);
 
+	void Separator(CmdPtr cmd);
 	void CoolDown(int magicMilis);
 
 	bool active = true;
@@ -73,10 +75,10 @@ public:
 	void Left();
 	void SmoothRight();
 	void SmoothLeft();
+
+	// next functions return evaluated time of action in milliseconds
 	void Turn90Deg(DirectionEnum dir);
 	void ForwardStep(double factor = 1);
 	void ManeuverRight();
 	void ManeuverLeft();
-
-
 };

@@ -51,7 +51,7 @@ public:
 			// work in 5 degree steps
 			double xDisplacement[NUM_BINS], yDisplacement[NUM_BINS];
 			double radianStep = M_PI * 5 / 180;
-			double smallTurnRadius = Constants::CHASSIS_WIDTH / 3;
+			double smallTurnRadius = Constants::CHASSIS_WIDTH / (params.spinMultiplierOnTurns - 1);
 
 			// guess slope movement time in ms
 			savedSlopeMovementTime = 300;
@@ -66,10 +66,8 @@ public:
 
 				for (int i = 0; i < NUM_BINS; ++i)
 				{
-					// 4 comes from 0.25 wheel differential turning ratio [so 5 is 4 + 1 and 3 is 4 - 1 - displacements in x directions are opposite on turns]
-					// half wheel is in picture, since it is on the edge, which would colide
-					xDisplacement[i] = 3 * smallTurnRadius * (1 - cos(i * radianStep)) + slopeTimeInSeconds * actualSpeedInMm * sin(i * radianStep);
-					yDisplacement[i] = 5 * smallTurnRadius * sin(i * radianStep) + slopeTimeInSeconds * actualSpeedInMm * cos(i * radianStep);
+					xDisplacement[i] = (params.spinMultiplierOnTurns + 1) * smallTurnRadius * (1 - cos(i * radianStep)) + slopeTimeInSeconds * actualSpeedInMm * sin(i * radianStep);
+					yDisplacement[i] = (params.spinMultiplierOnTurns + 1) * smallTurnRadius * sin(i * radianStep) + slopeTimeInSeconds * actualSpeedInMm * cos(i * radianStep);
 				}
 
 				// try to peak a non-severe angle

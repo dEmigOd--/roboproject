@@ -75,11 +75,11 @@ public:
 			{
 				if (offset > (imageWidth - (maxDisparity - list)) / 2)
 				{
-					++rightCount;
+					++leftCount;
 				}
 				else
 				{
-					++leftCount;
+					++rightCount;
 				}
 			}
 		}

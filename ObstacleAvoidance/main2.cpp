@@ -15,9 +15,9 @@
 #define KEY_LEFT 65361
 #define KEY_RIGHT 65363
 #define ESC 27
-#define KEY_LEFT_SHARP 65460
-#define KEY_STOP 65461
-#define KEY_RIGHT_SHARP 65462
+#define KEY_LEFT_SHARP 65460 // KP_4
+#define KEY_STOP 65461 // KP_5
+#define KEY_RIGHT_SHARP 65462 // KP_6
 
 const std::string RunningParameters::BaseName = "RobotFov";
 const std::string RunningParameters::ImageExtensionName = ".png";
@@ -35,7 +35,6 @@ int DENSITY = 5;
 int OBST_THRESHOLD = 0;
 int NPTS = 12;
 int EVENT_THRESHOLD = 1;
-int MEDIAN_BLUR_WINDOW = 3;
 double ERROR_THRESHOLD = 0.8;
 int GAUSS_SIGMA = 5;
 int LAPLACE_KERN = 3;
@@ -43,6 +42,8 @@ int DIST_THRESHOLD = 8;
 
 int tresh = 80;
 int odd = 3;
+
+bool smoothTurn = true;
 
 std::mutex syncronizer;
 // create logger for main part
@@ -154,6 +155,12 @@ RunningParameters ParseInputArguments(int argc, char* argv[])
 			continue;
 		}
 
+		if (CaseInsensitiveStringCompare(argv[currentArgN], "--turnMultiplier"))
+		{
+			params.spinMultiplierOnTurns = atof(argv[++currentArgN]);
+			continue;
+		}
+
 		if (CaseInsensitiveStringCompare(argv[currentArgN], "--dontMove"))
 		{
 			params.shouldMove = false;
@@ -212,6 +219,12 @@ RunningParameters ParseInputArguments(int argc, char* argv[])
 			continue;
 		}
 
+		if (CaseInsensitiveStringCompare(argv[currentArgN], "--blockSize"))
+		{
+			params.nBlockSize = atoi(argv[++currentArgN]);
+			continue;
+		}
+
 	}
 
 	return params;
@@ -249,14 +262,14 @@ int RunRobot(RobotManeuver& robotManeuver, RobotVision& robotVision, CallbackDat
 
 					switch (eSide)
 					{
-						case RobotVision::LEFT:
-							robotManeuver.ManeuverRight();
-							break;
-						case RobotVision::RIGHT:
-							robotManeuver.ManeuverLeft();
-							break;
-						default:
-							break;
+					case RobotVision::LEFT:
+						robotManeuver.ManeuverRight();
+						break;
+					case RobotVision::RIGHT:
+						robotManeuver.ManeuverLeft();
+						break;
+					default:
+						break;
 					}
 					eventsCounter = 0;
 				}
@@ -266,7 +279,6 @@ int RunRobot(RobotManeuver& robotManeuver, RobotVision& robotVision, CallbackDat
 				eventsCounter = 0;
 				robotManeuver.Forward();
 			}
-
 		}
 		else
 		{
@@ -285,13 +297,13 @@ int RunRobot(RobotManeuver& robotManeuver, RobotVision& robotVision, CallbackDat
 					robotManeuver.ImmediateStop();
 					break;
 				case KEY_LEFT:
-					robotManeuver.Left();
+					smoothTurn ? robotManeuver.SmoothLeft() : robotManeuver.Left();
 					break;
 				case KEY_LEFT_SHARP:
 					robotManeuver.Turn90Deg(RobotManeuver::LEFT);
 					break;
 				case KEY_RIGHT:
-					robotManeuver.Right();
+					smoothTurn ? robotManeuver.SmoothRight() : robotManeuver.Right();
 					break;
 				case KEY_RIGHT_SHARP:
 					robotManeuver.Turn90Deg(RobotManeuver::RIGHT);
@@ -345,6 +357,12 @@ int RunRobot(RobotManeuver& robotManeuver, RobotVision& robotVision, CallbackDat
 						data.params.startedProcessing = true;
 					}
 				}
+				break;
+			case 't': // smooth turns
+				smoothTurn = true;
+				break;
+			case 'y':
+				smoothTurn = false;
 			default:
 				break;
 		}
@@ -382,7 +400,7 @@ int main(int argc, char* argv[])
 	cv::createTrackbar("DENSITY", Constants::MatchesWindowName, &DENSITY, 20, TrackBarFunc);
 	cv::createTrackbar("NPTS", Constants::MatchesWindowName, &NPTS, 100, TrackBarFunc);
 	cv::createTrackbar("EVENT_THRESHOLD", Constants::MatchesWindowName, &EVENT_THRESHOLD, 10, TrackBarFunc);
-	cv::createTrackbar("MEDIAN_BLUR_WINDOW", Constants::MatchesWindowName, &odd, 10, TrackBarFuncOdd, &MEDIAN_BLUR_WINDOW);
+	cv::createTrackbar("BLOCK_SIZE", Constants::MatchesWindowName, &odd, 20, TrackBarFuncOdd, &data.params.nBlockSize);
 	cv::createTrackbar("ERROR_THRESHOLD", Constants::MatchesWindowName, &tresh, Constants::CONVERT_TO_PERCENT, TrackBarFuncTresh, &ERROR_THRESHOLD);
 	cv::createTrackbar("GAUSS_SIGMA", Constants::MatchesWindowName, &odd, 10, TrackBarFuncOdd, &GAUSS_SIGMA);
 	cv::createTrackbar("LAPLACE_KERN", Constants::MatchesWindowName, &odd, 10, TrackBarFuncOdd, &LAPLACE_KERN);

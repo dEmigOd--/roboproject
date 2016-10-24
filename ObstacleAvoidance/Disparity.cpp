@@ -47,8 +47,8 @@ void CalculateDetectableRange(const RunningParameters& params, int& minDetectabl
 	double closest_image_width = 2 * (params.speed * params.speedUnitInMm) * Constants::CLOSEST_DETECTABLE_RANGE * Constants::CAMERA_ANGLE_WIDTH_MULTIPLIER;
 
 	// in left image only up-to cameras' axis distance detectable should be checked
-	minDetectableDisparity = std::min((int)(Constants::OPTICAL_AXIS_DISTANCE / farthest_image_width * params.LEFT_IMAGE_RESIZED_WIDTH), params.LEFT_IMAGE_RESIZED_WIDTH);
-	maxDetectableDisparity = std::min((int)(Constants::OPTICAL_AXIS_DISTANCE / closest_image_width * params.LEFT_IMAGE_RESIZED_WIDTH) + 1, params.LEFT_IMAGE_RESIZED_WIDTH);
+	minDetectableDisparity = std::min((int)(Constants::OPTICAL_AXIS_DISTANCE / farthest_image_width * params.LEFT_IMAGE_RESIZED_WIDTH) + 1, params.LEFT_IMAGE_RESIZED_WIDTH);
+	maxDetectableDisparity = std::min((int)(Constants::OPTICAL_AXIS_DISTANCE / closest_image_width * params.LEFT_IMAGE_RESIZED_WIDTH), params.LEFT_IMAGE_RESIZED_WIDTH);
 }
 
 void AdjustDetectableRange(const RunningParameters& params, int& minDetectableDisparity, int& maxDetectableDisparity)
@@ -119,7 +119,7 @@ cv::Ptr<cv::StereoSGBM> CreateSGBM(const RunningParameters& params, int channels
 {
 	int uniquenessRatio = 10;
 	int speckleWindowSize = 100;
-	int speckleRange = 32;
+	int speckleRange = 2;
 	int disp12MaxDiff = 1;
 
 	int sgbmWinSize = params.nBlockSize;
@@ -136,14 +136,19 @@ cv::Ptr<cv::StereoSGBM> CreateSGBM(const RunningParameters& params, int channels
 	sgbm->setPreFilterCap(63);
 	sgbm->setBlockSize(sgbmWinSize);
 
+	// smoothness of disparity
 	sgbm->setP1(8 * channels * sgbmWinSize * sgbmWinSize);
 	sgbm->setP2(32 * channels * sgbmWinSize * sgbmWinSize);
+
 	sgbm->setMinDisparity(minDetectableDisparity);
 	sgbm->setNumDisparities(numDisparities);
 	sgbm->setUniquenessRatio(uniquenessRatio);
 	sgbm->setSpeckleWindowSize(speckleWindowSize);
 	sgbm->setSpeckleRange(speckleRange);
 	sgbm->setDisp12MaxDiff(disp12MaxDiff);
+
+	// full mode matching
+	sgbm->setMode(cv::StereoSGBM::MODE_HH);
 
 #endif
 	return sgbm;
@@ -244,7 +249,7 @@ cv::Mat Disparity::ComputeDisparityV2(const cv::Mat& left, const cv::Mat& right)
 		WriteCSV("output/Disparity.mat", disparity);
 	}
 
-	cv::medianBlur(disparity, disparity, MEDIAN_BLUR_WINDOW);
+	cv::medianBlur(disparity, disparity, params.nBlockSize);
 
 	return disparity;
 }
