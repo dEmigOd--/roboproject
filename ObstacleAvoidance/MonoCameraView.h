@@ -1,9 +1,9 @@
 #pragma once
 #include <vector>
-#include "opencv2/highgui/highgui.hpp"
+#include "CameraModel.h"
 #include "Logger.h"
 
-class MonoCameraView : public cv::VideoCapture
+class MonoCameraView : public CameraModel
 {
 private:
 	static el::Logger* logger;
@@ -12,8 +12,8 @@ private:
 	std::vector<std::pair<int, double>> onInitialize;
 
 public:
-	MonoCameraView(int cameraId)
-		: _id(cameraId), onInitialize()
+	MonoCameraView(int cameraId, const cv::Vec3d& cameraPosition = cv::Vec3d())
+		: CameraModel(cameraId, cameraPosition, false), _id(cameraId), onInitialize()
 	{
 	}
 

@@ -28,7 +28,7 @@ cv::VideoCapture& MonoCameraView::operator >> (CV_OUT cv::Mat& image)
 bool MonoCameraView::set(int propId, double value)
 {
 	onInitialize.push_back(std::make_pair(propId, value));
-	return true;
+	return CameraModel::set(propId, value);
 }
 
 bool MonoCameraView::isOpened() const
