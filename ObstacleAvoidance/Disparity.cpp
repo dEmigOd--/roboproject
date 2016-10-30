@@ -39,6 +39,7 @@ cv::Mat ThresholdEdges(cv::Mat& edges)
 	return edgesThresh;
 }
 
+
 void CalculateDetectableRange(const RunningParameters& params, int& minDetectableDisparity, int& maxDetectableDisparity)
 {
 	// we are mostly interested in decreasing greatly the search space
@@ -101,17 +102,17 @@ void AdjustDetectableRange(const RunningParameters& params, int& minDetectableDi
 	}
 }
 
-void ExtractSignificantEdges(const cv::Mat& left, const cv::Mat& right, cv::Mat& edgesLeftThresh, cv::Mat& edgesRightThresh)
+void ExtractSignificantEdges(const cv::Mat& left, const cv::Mat& right, cv::Mat& edgesLeft, cv::Mat& edgesRight, cv::Mat& edgesLeftThresh, cv::Mat& edgesRightThresh)
 {
 	// do it on edges, not original images
-	cv::Mat edgesLeft = DetectEdges(left);
-	cv::Mat edgesRight = DetectEdges(right);
+	edgesLeft = DetectEdges(left);
+	edgesRight = DetectEdges(right);
 
 	edgesLeftThresh = ThresholdEdges(edgesLeft);
 	edgesRightThresh = ThresholdEdges(edgesRight);
 
-	cv::imshow(Constants::LeftWindowName, edgesRightThresh);
-	cv::imshow(Constants::RightWindowName, edgesLeftThresh);
+	cv::imshow(Constants::LeftWindowName, edgesLeftThresh);
+	cv::imshow(Constants::RightWindowName, edgesRightThresh);
 	cv::waitKey(1);
 }
 
@@ -154,7 +155,7 @@ cv::Ptr<cv::StereoSGBM> CreateSGBM(const RunningParameters& params, int channels
 	return sgbm;
 }
 
-cv::Mat Disparity::ComputeDisparityV3(const cv::Mat& left, const cv::Mat& right) const
+cv::Mat SGBMDisparity::ComputeDisparity(const cv::Mat& left, const cv::Mat& right) const
 {
 	// set possible hit region
 	int minDetectableDisparity, maxDetectableDisparity;
@@ -169,10 +170,12 @@ cv::Mat Disparity::ComputeDisparityV3(const cv::Mat& left, const cv::Mat& right)
 	// minDetectableDisparity = 0;
 	cv::Ptr<cv::StereoSGBM> sgbm = CreateSGBM(params, left.channels(), minDetectableDisparity, numDisparities);
 
+	cv::Mat edgesLeft;
+	cv::Mat edgesRight;
 	cv::Mat edgesLeftThresh;
 	cv::Mat edgesRightThresh;
 
-	ExtractSignificantEdges(left, right, edgesLeftThresh, edgesRightThresh);
+	ExtractSignificantEdges(left, right, edgesLeft, edgesRight, edgesLeftThresh, edgesRightThresh);
 
 	cv::Mat disparity, disparity16S, maskedDisparity;
 	// compute disparities
@@ -181,12 +184,12 @@ cv::Mat Disparity::ComputeDisparityV3(const cv::Mat& left, const cv::Mat& right)
 #else
 	sgbm->compute
 #endif
-	(right, left, disparity);
+	(left, right, disparity);
 
 	// convert to human-acceptable visually
 	disparity.convertTo(disparity16S, CV_16S, 1 / 16.);
 	// now we are only interested in edges, so mask out non-edge stuff
-	disparity16S.copyTo(maskedDisparity, (disparity16S >= minDetectableDisparity) & (edgesRightThresh >= THRESHOLD));
+	disparity16S.copyTo(maskedDisparity, (disparity16S > minDetectableDisparity) & (edgesLeftThresh >= THRESHOLD));
 
 	if (params.IsInDebugMathMode())
 	{
@@ -203,60 +206,42 @@ cv::Mat Disparity::ComputeDisparityV3(const cv::Mat& left, const cv::Mat& right)
 	return maskedDisparity;
 }
 
-cv::Mat Disparity::ComputeDisparityV2(const cv::Mat& left, const cv::Mat& right) const
+
+double CompareBlock(int i, int j, int k, int blockSize, const cv::Mat &left, const cv::Mat &right, const cv::Mat &edgeLeft, const cv::Mat &edgeRight)
 {
-	cv::Mat edgesLeft = DetectEdges(left);
-	cv::Mat edgesRight = DetectEdges(right);
+	// ensures proper index access - no off image
+	int halfBlockSize = (blockSize >> 1) << 1;
 
-	cv::Mat edgesLeftThresh = ThresholdEdges(edgesLeft);
-	cv::Mat edgesRightThresh = ThresholdEdges(edgesRight);
+	int blockWidthLeft = std::min(halfBlockSize, std::min(j, k));
+	int blockWidthRight = std::min(halfBlockSize, std::min(right.cols - j - 1, right.cols - k - 1));
 
-	cv::imshow(Constants::LeftWindowName, edgesRightThresh);
-	cv::imshow(Constants::RightWindowName, edgesLeftThresh);
-	cv::waitKey(1);
+	int blockHeightTop = std::min(halfBlockSize, i);
+	int blockHeightBottom = std::min(halfBlockSize, right.rows - i - 1);
 
-	cv::Mat disparity = cv::Mat::zeros(edgesLeft.size(), CV_16S);
+	double sad = 0;
+	double normalizer = 0;
 
-	vector<vector<int>> matchMap(disparity.rows, vector<int>(disparity.cols, 0));
-
-	// set possible hit region
-	int minDetectableDisparity, maxDetectableDisparity;
-	CalculateDetectableRange(params, minDetectableDisparity, maxDetectableDisparity);
-
-
-	// only down to horizon to suppress matching ground points
-	for (int i = 0; i < params.GetHorizonHeight(); ++i)
+	// per paper this is the interesting Score result
+	for (int row = i - blockHeightTop; row <= i + blockHeightBottom; ++row)
 	{
-		// proceed with a horizontal scan
-		for (int j = minDetectableDisparity; j < disparity.cols; ++j)
+		for (int col = j - blockWidthLeft; col <= j + blockWidthRight; ++col)
 		{
-            int disp = ComputeBlockMatch(i, j, right, left, edgesRight, edgesLeft, edgesRightThresh, edgesLeftThresh, disparity, matchMap, 
-				minDetectableDisparity, maxDetectableDisparity);
-			// if found matching block store its disparity off mine image
-			// disparity is positive - we preserve j - k difference between right image coordinate and left
-			disparity.at<short>(i, j) = disp;
+			double leftI = left.at<uchar>(row, col - j + k);
+			double rightI = right.at<uchar>(row, col);
+			double leftEdge = edgeLeft.at<uchar>(row, col - j + k);
+			double rightEdge = edgeRight.at<uchar>(row, col);
 
-			// match found and not yet stored [i.e.
-			if (disp != 0 && matchMap[i][j - disp] == 0)
-			{
-				matchMap[i][j - disp] = j;
-			}
+			sad += abs(rightI - leftI);
+			normalizer += rightEdge + leftEdge;
 		}
 	}
 
-	if (params.IsInDebugMathMode())
-	{
-		WriteCSV("output/Disparity.mat", disparity);
-	}
-
-	cv::medianBlur(disparity, disparity, params.nBlockSize);
-
-	return disparity;
+	return (normalizer) ? sad / normalizer : sad;
 }
 
-int Disparity::ComputeBlockMatch(int i, int j, const cv::Mat& left, const cv::Mat& right, const cv::Mat& edgesLeft, const cv::Mat& edgesRight,
+int ComputeBlockMatch(int i, int j, int blockSize, const cv::Mat& left, const cv::Mat& right, const cv::Mat& edgesLeft, const cv::Mat& edgesRight,
 	const cv::Mat& leftBlockMap, const cv::Mat& rightBlockMap, const cv::Mat& disparity,
-	vector<vector<int>>& matchMap, int minDetectableDisparity, int maxDetectableDisparity) const
+	std::vector<std::vector<int>>& matchMap, int minDetectableDisparity, int maxDetectableDisparity)
 {
 	// if block is not on the edge leave
 	if (rightBlockMap.at<uchar>(i, j) == 0)
@@ -267,9 +252,9 @@ int Disparity::ComputeBlockMatch(int i, int j, const cv::Mat& left, const cv::Ma
 	//int col = (j == 0) ? j : j - 1;
 	//int row = (i == 0) ? i : i - 1;
 
-	vector<pair<double, int>> matches;
-	double min = numeric_limits<double>::max();
-	pair<double, int> firstErr, secondErr, thirdErr;
+	std::vector<std::pair<double, int>> matches;
+	double min = std::numeric_limits<double>::max();
+	std::pair<double, int> firstErr, secondErr, thirdErr;
 	int disp = 0;
 	double leftErr(0), upErr(0), smoothnessErr(0), edgeProfileError(0);
 	double err(0), blockErr(0);
@@ -290,7 +275,7 @@ int Disparity::ComputeBlockMatch(int i, int j, const cv::Mat& left, const cv::Ma
 			//leftErr = (int)disparity.at<short>(i, col) != 0 ? abs((k - j) - (int)disparity.at<short>(i, col)) : 0;
 			//leftErr = leftErr / right.cols + abs((int)right.at<uchar>(i, col) - (int)right.at<uchar>(i, j)) / Constants::MAX_COLOR;
 
-			blockErr = CompareBlock(i, j, k, right, left, edgesRight, edgesLeft);
+			blockErr = CompareBlock(i, j, k, blockSize, right, left, edgesRight, edgesLeft);
 			smoothnessErr = (leftErr + upErr) == 0 ? 1 : (leftErr + upErr);
 
 			err = smoothnessErr * blockErr * edgeProfileError;
@@ -298,7 +283,7 @@ int Disparity::ComputeBlockMatch(int i, int j, const cv::Mat& left, const cv::Ma
 			if (abs(matchMap[i][k] - j) < 3 || matchMap[i][k] == 0)
 			{
 
-				matches.push_back(make_pair(err, j - k));
+				matches.push_back(std::make_pair(err, j - k));
 				if (err < min)
 				{
 					min = err;
@@ -308,7 +293,7 @@ int Disparity::ComputeBlockMatch(int i, int j, const cv::Mat& left, const cv::Ma
 		}
 	}
 	sort(matches.begin(), matches.end());
-	vector<pair<double, int>>::iterator it = matches.begin();
+	std::vector<std::pair<double, int>>::iterator it = matches.begin();
 
 
 	if (it == matches.end())
@@ -351,35 +336,54 @@ int Disparity::ComputeBlockMatch(int i, int j, const cv::Mat& left, const cv::Ma
 	return  disp;
 }
 
-double Disparity::CompareBlock(int i, int j, int k, const cv::Mat &left, const cv::Mat &right, const cv::Mat &edgeLeft, const cv::Mat &edgeRight) const
+
+// BEWARE
+// should not be working - need to adjust to OpenCV, positive disparities are to the left of searched point and not right !!!!!
+cv::Mat HomeGrownDisparity::ComputeDisparity(const cv::Mat& left, const cv::Mat& right) const
 {
-	// ensures proper index access - no off image
-	int halfBlockSize = (params.nBlockSize >> 1) << 1;
+	cv::Mat edgesLeft;
+	cv::Mat edgesRight;
+	cv::Mat edgesLeftThresh;
+	cv::Mat edgesRightThresh;
 
-	int blockWidthLeft = min(halfBlockSize, min(j, k));
-	int blockWidthRight = min(halfBlockSize, min(right.cols - j - 1, right.cols - k - 1));
+	ExtractSignificantEdges(left, right, edgesLeft, edgesRight, edgesLeftThresh, edgesRightThresh);
 
-	int blockHeightTop = min(halfBlockSize, i);
-	int blockHeightBottom = min(halfBlockSize, right.rows - i - 1);
+	cv::Mat disparity = cv::Mat::zeros(edgesLeft.size(), CV_16S);
 
-	double sad = 0;
-	double normalizer = 0;
+	std::vector<std::vector<int>> matchMap(disparity.rows, std::vector<int>(disparity.cols, 0));
 
-	// per paper this is the interesting Score result
-	for (int row = i - blockHeightTop; row <= i + blockHeightBottom; ++row)
+	// set possible hit region
+	int minDetectableDisparity, maxDetectableDisparity;
+	CalculateDetectableRange(params, minDetectableDisparity, maxDetectableDisparity);
+
+
+	// only down to horizon to suppress matching ground points
+	for (int i = 0; i < params.GetHorizonHeight(); ++i)
 	{
-		for (int col = j - blockWidthLeft; col <= j + blockWidthRight; ++col)
+		// proceed with a horizontal scan
+		for (int j = minDetectableDisparity; j < disparity.cols; ++j)
 		{
-			double leftI = left.at<uchar>(row, col - j + k);
-			double rightI = right.at<uchar>(row, col);
-			double leftEdge = edgeLeft.at<uchar>(row, col - j + k);
-			double rightEdge = edgeRight.at<uchar>(row, col);
+            int disp = ComputeBlockMatch(i, j, params.nBlockSize, right, left, edgesRight, edgesLeft, edgesRightThresh, edgesLeftThresh, disparity, matchMap,
+				minDetectableDisparity, maxDetectableDisparity);
+			// if found matching block store its disparity off mine image
+			// disparity is positive - we preserve j - k difference between right image coordinate and left
+			disparity.at<short>(i, j) = disp;
 
-			sad += abs(rightI - leftI);
-			normalizer += rightEdge + leftEdge;
+			// match found and not yet stored [i.e.
+			if (disp != 0 && matchMap[i][j - disp] == 0)
+			{
+				matchMap[i][j - disp] = j;
+			}
 		}
 	}
 
-	return (normalizer) ? sad / normalizer : sad;
+	if (params.IsInDebugMathMode())
+	{
+		WriteCSV("output/Disparity.mat", disparity);
+	}
+
+	cv::medianBlur(disparity, disparity, params.nBlockSize);
+
+	return disparity;
 }
 

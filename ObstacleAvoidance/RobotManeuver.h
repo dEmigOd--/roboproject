@@ -9,9 +9,6 @@
 #include "RobotController.h"
 #include "ObstacleAvoider.h"
 
-using namespace std;
-
-
 class RobotManeuver
 {
 	static el::Logger* creatorLogger;

@@ -3,22 +3,32 @@
 #include "Utils.h"
 #include "MonoCameraView.h"
 
-using namespace cv;
-
-const Scalar RED(0, 0, 255); // left
-const Scalar GREEN(0, 255, 0); // no
-const Scalar BLUE(255, 0, 0); // right
+const cv::Scalar RED(0, 0, 255); // left
+const cv::Scalar GREEN(0, 255, 0); // no
+const cv::Scalar BLUE(255, 0, 0); // right
 
 el::Logger* RobotVision::logger = el::Loggers::getLogger("Vision");
 
 RobotVision::RobotVision(std::mutex& acquisitionLock, RunningParameters& params) :
-	initialized(false), dispObj(params), acqLock(acquisitionLock), 
+	initialized(false), acqLock(acquisitionLock), 
 	active(true), params(params), videoGrab(&RobotVision::CaptureFromCam, this)
 {
+	switch (params.useOpenCVAlgorihmForMatching)
+	{
+		case MatchingAlgorithm::OPENCV_SGBM:
+			dispObj = std::unique_ptr<Disparity>(new SGBMDisparity(params));
+			break;
+		case MatchingAlgorithm::OWN_BLOCKMATCHING:
+			dispObj = std::unique_ptr<Disparity>(new HomeGrownDisparity(params));
+			break;
+		default:
+			throw std::invalid_argument("Unsupported block-matching algorithm");
+	}
+
 	logger->debug("Inititalizing robot Vision System");
 }
 
-Mat& RobotVision::GetCurrentDisparity()
+cv::Mat& RobotVision::GetCurrentDisparity()
 {
 	return disparity;
 }
@@ -31,7 +41,7 @@ bool RobotVision::VideoInWorkingState() const
 class FrontPointCounter
 {
 	std::vector<std::vector<int>> closePoints;
-	int maxDisparity;
+	int maxDisparity = 0;
 	int imageWidth;
 
 public:
@@ -73,11 +83,13 @@ public:
 		{
 			for (auto const& offset : closePoints[list])
 			{
-				if (offset > (imageWidth - (maxDisparity - list)) / 2)
+				// remember max - disparity is distance between optical axis, so center is half that distance to the right of left image center
+				// additionally column numbering increases from left to right, hence the "+" sign
+				if (offset < (imageWidth + (maxDisparity - list)) / 2)
 				{
 					++leftCount;
 				}
-				else
+				else // even in the center
 				{
 					++rightCount;
 				}
@@ -110,7 +122,7 @@ RobotVision::SideEnum RobotVision::ObstaclePresent()
 		return res;
 	}
 
-	Mat disparity = CalculateNewDisparity();
+	cv::Mat disparity = CalculateNewDisparity();
 	FrontPointCounter pc(disparity.cols, params.AcceptableDepthOffset);
 
 	for (int i = 0; i < disparity.rows; i++)
@@ -122,7 +134,7 @@ RobotVision::SideEnum RobotVision::ObstaclePresent()
 		}
 	}
 
-	Mat obst(disparity.rows, 10, CV_8UC3);
+	cv::Mat obst(disparity.rows, 10, CV_8UC3);
 	obst = GREEN;
 
 	if (pc.NumMatchedPoints() >= NPTS)
@@ -140,9 +152,9 @@ RobotVision::SideEnum RobotVision::ObstaclePresent()
 		}
 
 	}
-	Mat matches = GetMatches();
+	cv::Mat matches = GetMatches();
 
-	Mat resMat;
+	cv::Mat resMat;
 	cv::hconcat(matches, obst, resMat);
 	cv::imshow("Matches", resMat);
 
@@ -167,49 +179,47 @@ void RobotVision::SafeAcquireLastRecordedImages()
 	}
 }
 
-Mat& RobotVision::CalculateNewDisparity()
+cv::Mat& RobotVision::CalculateNewDisparity()
 {
 	SafeAcquireLastRecordedImages();
 
-	cv::Mat(Disparity::*matchingAlgorithm) (const cv::Mat&, const cv::Mat&) const = 
-		params.useOpenCVAlgorihmForMatching ? &Disparity::ComputeDisparityV3 : &Disparity::ComputeDisparityV2;
-
-	this->disparity = (dispObj.*matchingAlgorithm)(leftForDisp, rightForDisp);
+	this->disparity = dispObj->ComputeDisparity(leftForDisp, rightForDisp);
 
 	return this->disparity;
 }
 
-Mat RobotVision::GetMatches()
+cv::Mat RobotVision::GetMatches()
 {
-	std::vector<KeyPoint> keypoints_1, keypoints_2;
-	std::vector<DMatch> matches;
+	std::vector<cv::KeyPoint> keypoints_1, keypoints_2;
+	std::vector<cv::DMatch> matches;
 
 	int k = 0;
-	Mat currDisparity = GetCurrentDisparity();
+	cv::Mat currDisparity = GetCurrentDisparity();
 
 	int step = std::max(1, DENSITY);
 
-	for (int x = 0; x < left.cols; x += step)
+	for (int y = 0; y < left.rows; y += step)
 	{
-		for (int y = 0; y < left.rows; y += step)
+		for (int x = 0; x < left.cols; x += step)
 		{
-			int disparity = (int)currDisparity.at<short>(y, x);
+			// check out http://stackoverflow.com/questions/25642532/opencv-pointx-y-represent-column-row-or-row-column
+			int disparity = (int)currDisparity.at<short>(cv::Point(x, y));
 			if (disparity > OBST_THRESHOLD)
 			{
-				KeyPoint point(x, y, 1);
+				cv::KeyPoint point(x, y, 1);
 				keypoints_1.push_back(point);
-				KeyPoint point2(x - disparity, y, 1);
+				cv::KeyPoint point2(x - disparity, y, 1);
 				keypoints_2.push_back(point2);
-				DMatch match(k, k, 0);
+				cv::DMatch match(k, k, 0);
 				matches.push_back(match);
 				k++;
 			}
 		}
 	}
 
-	Mat img_matches;
+	cv::Mat img_matches;
 
-	cv::drawMatches(rightForDisp, keypoints_1, leftForDisp, keypoints_2, matches, img_matches);
+	cv::drawMatches(leftForDisp, keypoints_1, rightForDisp, keypoints_2, matches, img_matches);
 	return img_matches;
 }
 
@@ -219,12 +229,15 @@ void RobotVision::OpenVideoCap()
 
 	if (!params.IsInReplayMode())
 	{
+		cv::Vec3d leftCameraPosition = cv::Vec3d({ 0.0, 0.0, 0.0 });
+		cv::Vec3d rightCameraPosition = cv::Vec3d({ 0.0, Constants::OPTICAL_AXIS_DISTANCE, 0.0 });
+
 #ifdef __linux__
-		leftCap = std::shared_ptr<VideoCapture>(new VideoCapture(params.leftCameraIdx));
-		rightCap = std::shared_ptr<VideoCapture>(new VideoCapture(params.rightCameraIdx));
+		leftCap = std::unique_ptr<CameraModel>(new CameraModel(params.leftCameraIdx, leftCameraPosition));
+		rightCap = std::unique_ptr<CameraModel>(new CameraModel(params.rightCameraIdx, rightCameraPosition));
 #else
-		leftCap = std::shared_ptr<VideoCapture>(new MonoCameraView(params.leftCameraIdx));
-		rightCap = std::shared_ptr<VideoCapture>(new MonoCameraView(params.rightCameraIdx));
+		leftCap = std::unique_ptr<CameraModel>(new MonoCameraView(params.leftCameraIdx, leftCameraPosition));
+		rightCap = std::unique_ptr<CameraModel>(new MonoCameraView(params.rightCameraIdx, rightCameraPosition));
 #endif
 
 		if (!rightCap->isOpened() || !leftCap->isOpened())  // check if we succeeded
@@ -272,8 +285,8 @@ void RobotVision::SafeCaptureFromCam()
 			logger->trace("Reading image %v", PadWithZeroes(imageIndexToRead, 4));
 		}
 
-		left = imread(params.BuildLeftImageName());
-		right = imread(params.BuildRightImageName());
+		left = cv::imread(params.BuildLeftImageName());
+		right = cv::imread(params.BuildRightImageName());
 	}
 	else
 	{
@@ -283,8 +296,8 @@ void RobotVision::SafeCaptureFromCam()
 
 	videoWorking = true;
 
-	resize(left, left, Size(params.LEFT_IMAGE_RESIZED_WIDTH, params.LEFT_IMAGE_RESIZED_HEIGHT));
-	resize(right, right, Size(params.RIGHT_IMAGE_RESIZED_WIDTH, params.RIGHT_IMAGE_RESIZED_HEIGHT));
+	resize(left, left, cv::Size(params.LEFT_IMAGE_RESIZED_WIDTH, params.LEFT_IMAGE_RESIZED_HEIGHT));
+	resize(right, right, cv::Size(params.RIGHT_IMAGE_RESIZED_WIDTH, params.RIGHT_IMAGE_RESIZED_HEIGHT));
 
 	cvtColor(left, left, CV_BGR2GRAY);
 	cvtColor(right, right, CV_BGR2GRAY);

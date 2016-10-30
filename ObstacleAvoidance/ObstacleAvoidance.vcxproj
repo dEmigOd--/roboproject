@@ -163,6 +163,8 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="CameraConfig.h" />
+    <ClInclude Include="CameraModel.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="Disparity.h" />
     <ClInclude Include="easylogging++.h" />
@@ -170,6 +172,7 @@
     <ClInclude Include="MonoCameraView.h" />
     <ClInclude Include="motors.h" />
     <ClInclude Include="ObstacleAvoider.h" />
+    <ClInclude Include="OpenCv.h" />
     <ClInclude Include="pwm.h" />
     <ClInclude Include="RobotController.h" />
     <ClInclude Include="RobotManeuver.h" />
@@ -181,6 +184,7 @@
     <ClInclude Include="xstring.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CameraModel.cpp" />
     <ClCompile Include="Constants.cpp" />
     <ClCompile Include="Disparity.cpp" />
     <ClCompile Include="Logger.cpp" />

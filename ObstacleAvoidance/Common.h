@@ -3,6 +3,12 @@
 #include "Utils.h"
 #include <chrono>
 
+enum MatchingAlgorithm
+{
+	OPENCV_SGBM,
+	OWN_BLOCKMATCHING,
+};
+
 class Constants
 {
 public :
@@ -66,13 +72,13 @@ public:
 	double speedUnitInMm = 7.0;
 
 	double spinMultiplierOnTurns = 4.0;
-
+	double ignoreFarPointsInSecAway = 0.6;
 	int AcceptableDepthOffset = 2;
 
-	int leftCameraIdx = 0;
-	int rightCameraIdx = 1;
+	int leftCameraIdx = 1;
+	int rightCameraIdx = 0;
 
-	bool useOpenCVAlgorihmForMatching = true;
+	MatchingAlgorithm useOpenCVAlgorihmForMatching = OPENCV_SGBM;
 
 	int heightOfHorizon;
 	int heightOfHorizonSet = false;
@@ -90,7 +96,7 @@ public:
 
 	std::string wrkDir = "";
 
-	int nBlockSize = 15;
+	int nBlockSize = 9;
 
 	int GetHorizonHeight() const
 	{

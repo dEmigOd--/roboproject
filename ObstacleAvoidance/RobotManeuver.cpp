@@ -67,7 +67,7 @@ void RobotManeuver::Separator(CmdPtr cmd)
 
 void RobotManeuver::CoolDown(int magicMilis)
 {
-	AddCommand(Cmd("CONTINUE-" + to_string(magicMilis), CmdPtr(
+	AddCommand(Cmd("CONTINUE-" + std::to_string(magicMilis), CmdPtr(
 		[this, magicMilis]() -> void
 		{
 			workerLogger->verbose(2, "Started waiting");

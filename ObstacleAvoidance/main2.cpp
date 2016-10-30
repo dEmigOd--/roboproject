@@ -28,8 +28,6 @@ const std::string RunningParameters::RightSuffix = "_" + Constants::RightWindowN
 const std::string RunningParameters::ImagesDirName = "images";
 const std::string RunningParameters::OutputDirName = "output";
 
-using namespace std;
-
 int THRESHOLD = 30;
 int DENSITY = 5;
 int OBST_THRESHOLD = 0;
@@ -56,13 +54,13 @@ struct CallbackData
 	RunningParameters params;
 };
 
-bool CaseInsensitiveStringCompare(const string& str1, const string& str2)
+bool CaseInsensitiveStringCompare(const std::string& str1, const std::string& str2)
 {
 	if (str1.size() != str2.size())
 	{
 		return false;
 	}
-	for (string::const_iterator c1 = str1.begin(), c2 = str2.begin(); c1 != str1.end(); ++c1, ++c2)
+	for (std::string::const_iterator c1 = str1.begin(), c2 = str2.begin(); c1 != str1.end(); ++c1, ++c2)
 	{
 		if (tolower(*c1) != tolower(*c2))
 		{
@@ -99,10 +97,10 @@ void CallBackFunc(int event, int j, int i, int flags, void* userdata)
 	if (event == cv::EVENT_LBUTTONDOWN)
 	{
 		int row = i;
-		int col = j - data->disparity.cols;
+		int col = j;
 		if (row > data->disparity.rows || col > data->disparity.cols || col < 0)
 		{
-			cout << "Click on right image" << endl;
+			std::cout << "Click on left image" << std::endl;
 			return;
 		}
 		int x = (int)(data->disparity.at<short>(row, col));
@@ -215,13 +213,19 @@ RunningParameters ParseInputArguments(int argc, char* argv[])
 
 		if (CaseInsensitiveStringCompare(argv[currentArgN], "--useAmatuerForMatching"))
 		{
-			params.useOpenCVAlgorihmForMatching = false;
+			params.useOpenCVAlgorihmForMatching = MatchingAlgorithm::OWN_BLOCKMATCHING;
 			continue;
 		}
 
 		if (CaseInsensitiveStringCompare(argv[currentArgN], "--blockSize"))
 		{
 			params.nBlockSize = atoi(argv[++currentArgN]);
+			continue;
+		}
+
+		if (CaseInsensitiveStringCompare(argv[currentArgN], "--ignoreFarPoints"))
+		{
+			params.ignoreFarPointsInSecAway = atof(argv[++currentArgN]);
 			continue;
 		}
 
@@ -400,10 +404,10 @@ int main(int argc, char* argv[])
 	cv::createTrackbar("DENSITY", Constants::MatchesWindowName, &DENSITY, 20, TrackBarFunc);
 	cv::createTrackbar("NPTS", Constants::MatchesWindowName, &NPTS, 100, TrackBarFunc);
 	cv::createTrackbar("EVENT_THRESHOLD", Constants::MatchesWindowName, &EVENT_THRESHOLD, 10, TrackBarFunc);
-	cv::createTrackbar("BLOCK_SIZE", Constants::MatchesWindowName, &odd, 20, TrackBarFuncOdd, &data.params.nBlockSize);
+	cv::createTrackbar("BLOCK_SIZE", Constants::MatchesWindowName, &data.params.nBlockSize, 20, TrackBarFuncOdd, &data.params.nBlockSize);
 	cv::createTrackbar("ERROR_THRESHOLD", Constants::MatchesWindowName, &tresh, Constants::CONVERT_TO_PERCENT, TrackBarFuncTresh, &ERROR_THRESHOLD);
-	cv::createTrackbar("GAUSS_SIGMA", Constants::MatchesWindowName, &odd, 10, TrackBarFuncOdd, &GAUSS_SIGMA);
-	cv::createTrackbar("LAPLACE_KERN", Constants::MatchesWindowName, &odd, 10, TrackBarFuncOdd, &LAPLACE_KERN);
+	cv::createTrackbar("GAUSS_SIGMA", Constants::MatchesWindowName, &GAUSS_SIGMA, 10, TrackBarFuncOdd, &GAUSS_SIGMA);
+	cv::createTrackbar("LAPLACE_KERN", Constants::MatchesWindowName, &LAPLACE_KERN, 10, TrackBarFuncOdd, &LAPLACE_KERN);
 	cv::createTrackbar("OBST_THRESHOLD", Constants::MatchesWindowName, &OBST_THRESHOLD, 25, TrackBarFunc);
 
 	RobotManeuver robotManeuver(data.params);

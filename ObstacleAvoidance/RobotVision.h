@@ -8,6 +8,7 @@
 #include <atomic>
 #include "Logger.h"
 #include "Common.h"
+#include "CameraModel.h"
 #include "Disparity.h"
 
 class RobotVision
@@ -20,16 +21,16 @@ public:
 	std::condition_variable condition;
 
 private:
-	std::shared_ptr<cv::VideoCapture> rightCap; // open the first camera
-	std::shared_ptr<cv::VideoCapture> leftCap; // open the second camera
-	Disparity dispObj;
+	std::unique_ptr<CameraModel> rightCap; // open the first camera
+	std::unique_ptr<CameraModel> leftCap; // open the second camera
+	std::unique_ptr<Disparity> dispObj;
 	cv::Mat left, right, leftRGB, rightRGB, leftForDisp, rightForDisp;
 
 	cv::Mat disparity;
 	double medianDisp;
 	std::mutex mut;
 	std::mutex& acqLock;
-	atomic<bool> active;
+	std::atomic<bool> active;
 	RunningParameters& params;
 	std::thread videoGrab;
 
