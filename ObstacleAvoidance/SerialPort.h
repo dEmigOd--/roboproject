@@ -1,13 +1,27 @@
 #pragma once
 
+/*M/////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//	Serial class
+//	implements abstraction of serial low level io port device
+//
+//	Author: Dmitry Rabinovich
+//	Copyright (C) 2016 Technion, IIT
+//
+//	2016, November 19
+//
+//M*/
+
+
 #include <string>
 #include <stdexcept>
 #include <vector>
-#include "Logger.h"
 
 #ifdef __linux__
 #include <termios.h>
 #endif
+
+#include "Logger.h"
 
 class SerialPort
 {

@@ -175,11 +175,11 @@
     <ClInclude Include="OpenCv.h" />
     <ClInclude Include="pwm.h" />
     <ClInclude Include="RobotController.h" />
+    <ClInclude Include="RobotInputParser.h" />
     <ClInclude Include="RobotManeuver.h" />
     <ClInclude Include="RobotVision.h" />
     <ClInclude Include="serial.h" />
     <ClInclude Include="SerialPort.h" />
-    <ClInclude Include="Thresholds.h" />
     <ClInclude Include="Utils.h" />
     <ClInclude Include="xstring.h" />
   </ItemGroup>
@@ -193,6 +193,7 @@
     <ClCompile Include="posix_serial.cpp" />
     <ClCompile Include="pwm.cpp" />
     <ClCompile Include="RobotController.cpp" />
+    <ClCompile Include="RobotInputParser.cpp" />
     <ClCompile Include="RobotManeuver.cpp" />
     <ClCompile Include="RobotVision.cpp" />
     <ClCompile Include="SerialPort.cpp" />

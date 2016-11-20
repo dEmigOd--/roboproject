@@ -1,11 +1,32 @@
 #pragma once
 
+/*M/////////////////////////////////////////////////////////////////////////////////////////////////////
+//  IMPORTANT: READ BEFORE USING.
+//
+//	ObstacleAvoider class
+//	implements decision parameter solver for avoiding a close obstacle
+//
+//	*	there are certain guesses about parameters, so check them out
+//	*	speed is taken into account
+//	*	uses a pocket-on-the-road avoidance technique
+//
+//	Author: Dmitry Rabinovich
+//	Copyright (C) 2016 Technion, IIT
+//
+//	2016, November 19
+//
+//M*/
+
 #include <math.h>
+
 #include "Common.h"
 
 #ifndef M_PI
 #define M_PI acos(-1.0)
 #endif
+
+#define MS_IN_SECOND 1000
+#define MS_IN_SECOND_D (double)(MS_IN_SECOND)
 
 class ObstacleAvoider
 {
@@ -17,12 +38,12 @@ class ObstacleAvoider
 
 	static double ToSeconds(int timeInMs)
 	{
-		return timeInMs / 1000.0;
+		return timeInMs / MS_IN_SECOND_D;
 	}
 
 	static int ToMilliseconds(double timeInSec)
 	{
-		return static_cast<int>(1000 * timeInSec);
+		return static_cast<int>(MS_IN_SECOND * timeInSec);
 	}
 
 public:

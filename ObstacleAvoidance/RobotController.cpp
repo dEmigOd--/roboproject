@@ -1,3 +1,15 @@
+/*M/////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//	RobotController class
+//	implementation
+//
+//	Author: ben, Dmitry Rabinovich
+//	Copyright (C) 2016 Technion, IIT
+//
+//	2016, November 19
+//
+//M*/
+
 #include "RobotController.h"
 #include "Utils.h"
 

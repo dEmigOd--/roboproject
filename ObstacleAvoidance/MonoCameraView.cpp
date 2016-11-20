@@ -1,4 +1,18 @@
+/*M/////////////////////////////////////////////////////////////////////////////////////////////////////
+//  IMPORTANT: READ BEFORE USING.
+//
+//	MonoCameraView class
+//	implements capturing images from stereo camera one camera at a time
+//
+//	Author: Dmitry Rabinovich
+//	Copyright (C) 2016 Technion, IIT
+//
+//	2016, November 19
+//
+//M*/
+
 #include "MonoCameraView.h"
+
 
 el::Logger* MonoCameraView::logger = el::Loggers::getLogger("OneEyedVision");
 

@@ -1,5 +1,18 @@
 #pragma once
 
+/*M/////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//	Logger class
+//	wrapper around easylogger
+//
+//	Author: Dmitry Rabinovich
+//	Copyright (C) 2016 Technion, IIT
+//
+//	2016, November 19
+//
+//M*/
+
+
 #include "easylogging++.h"
 
 class Logger

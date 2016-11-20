@@ -1,11 +1,26 @@
 #pragma once
 
+/*M/////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//	RobotVision class
+//	implements abstraction layer to extract knowledge of obstacle in the world
+//
+//
+//	Author: ben, Dmitry Rabinovich
+//	Copyright (C) 2016 Technion, IIT
+//
+//	2016, November 19
+//
+//M*/
+
+
 #include <vector>
 #include <thread>
 #include <mutex>
 #include <memory>
 #include <condition_variable>
 #include <atomic>
+
 #include "Logger.h"
 #include "Common.h"
 #include "CameraModel.h"
@@ -19,10 +34,11 @@ public:
 	bool initialized;
 	bool videoWorking;
 	std::condition_variable condition;
+	std::shared_ptr<DepthCalculator> depthCalculator;
 
 private:
-	std::unique_ptr<CameraModel> rightCap; // open the first camera
-	std::unique_ptr<CameraModel> leftCap; // open the second camera
+	std::shared_ptr<CameraModel> rightCap; // open the first camera
+	std::shared_ptr<CameraModel> leftCap; // open the second camera
 	std::unique_ptr<Disparity> dispObj;
 	cv::Mat left, right, leftRGB, rightRGB, leftForDisp, rightForDisp;
 
@@ -38,6 +54,7 @@ private:
 	void SafeAcquireLastRecordedImages();
 	bool VideoInWorkingState() const;
 
+	void InitializeDisparityObject();
 public:
 	enum SideEnum
 	{

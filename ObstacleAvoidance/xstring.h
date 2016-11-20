@@ -1,5 +1,17 @@
 #pragma once
 
+/*M/////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//	xstring class
+//	probably, strings were written as is into PWM on previous project
+//
+//	Author: ben
+//
+//	2016, November 19
+//
+//M*/
+
+
 #include <iostream>
 #include <sstream>
 #include <vector>

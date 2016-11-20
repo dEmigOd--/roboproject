@@ -1,4 +1,17 @@
+/*M/////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//	RobotVision class
+//	implementation
+//
+//	Author: ben, Dmitry Rabinovich
+//	Copyright (C) 2016 Technion, IIT
+//
+//	2016, November 19
+//
+//M*/
+
 #include <algorithm>
+
 #include "RobotVision.h"
 #include "Utils.h"
 #include "MonoCameraView.h"
@@ -13,6 +26,12 @@ RobotVision::RobotVision(std::mutex& acquisitionLock, RunningParameters& params)
 	initialized(false), acqLock(acquisitionLock), 
 	active(true), params(params), videoGrab(&RobotVision::CaptureFromCam, this)
 {
+	InitializeDisparityObject();
+	logger->debug("Inititalizing robot Vision System");
+}
+
+void RobotVision::InitializeDisparityObject()
+{
 	switch (params.useOpenCVAlgorihmForMatching)
 	{
 		case MatchingAlgorithm::OPENCV_SGBM:
@@ -24,8 +43,6 @@ RobotVision::RobotVision(std::mutex& acquisitionLock, RunningParameters& params)
 		default:
 			throw std::invalid_argument("Unsupported block-matching algorithm");
 	}
-
-	logger->debug("Inititalizing robot Vision System");
 }
 
 cv::Mat& RobotVision::GetCurrentDisparity()
@@ -137,7 +154,7 @@ RobotVision::SideEnum RobotVision::ObstaclePresent()
 	cv::Mat obst(disparity.rows, 10, CV_8UC3);
 	obst = GREEN;
 
-	if (pc.NumMatchedPoints() >= NPTS)
+	if (pc.NumMatchedPoints() >= params.NPTS)
 	{
 		res = pc.DetectSide();
 		logger->verbose(2, "Detected obstacle from %v", res);
@@ -183,7 +200,12 @@ cv::Mat& RobotVision::CalculateNewDisparity()
 {
 	SafeAcquireLastRecordedImages();
 
-	this->disparity = dispObj->ComputeDisparity(leftForDisp, rightForDisp);
+	cv::Mat leftImage, rightImage;
+	// undistort the images the images
+	cv::undistort(leftForDisp, leftImage, leftCap->K(), leftCap->Distortion());
+	cv::undistort(rightForDisp, rightImage, rightCap->K(), rightCap->Distortion());
+
+	this->disparity = dispObj->ComputeDisparity(leftImage, rightImage);
 
 	return this->disparity;
 }
@@ -196,7 +218,7 @@ cv::Mat RobotVision::GetMatches()
 	int k = 0;
 	cv::Mat currDisparity = GetCurrentDisparity();
 
-	int step = std::max(1, DENSITY);
+	int step = std::max(1, params.DENSITY);
 
 	for (int y = 0; y < left.rows; y += step)
 	{
@@ -204,7 +226,7 @@ cv::Mat RobotVision::GetMatches()
 		{
 			// check out http://stackoverflow.com/questions/25642532/opencv-pointx-y-represent-column-row-or-row-column
 			int disparity = (int)currDisparity.at<short>(cv::Point(x, y));
-			if (disparity > OBST_THRESHOLD)
+			if (disparity > params.OBST_THRESHOLD)
 			{
 				cv::KeyPoint point(x, y, 1);
 				keypoints_1.push_back(point);
@@ -229,15 +251,15 @@ void RobotVision::OpenVideoCap()
 
 	if (!params.IsInReplayMode())
 	{
-		cv::Vec3d leftCameraPosition = cv::Vec3d({ 0.0, 0.0, 0.0 });
-		cv::Vec3d rightCameraPosition = cv::Vec3d({ 0.0, Constants::OPTICAL_AXIS_DISTANCE, 0.0 });
+		cv::Vec3d leftCameraPosition = cv::Vec3d({ -Constants::OPTICAL_AXIS_DISTANCE / 2, 0.0, 0.0 });
+		cv::Vec3d rightCameraPosition = cv::Vec3d({ Constants::OPTICAL_AXIS_DISTANCE / 2, 0.0, 0.0 });
 
 #ifdef __linux__
-		leftCap = std::unique_ptr<CameraModel>(new CameraModel(params.leftCameraIdx, leftCameraPosition));
-		rightCap = std::unique_ptr<CameraModel>(new CameraModel(params.rightCameraIdx, rightCameraPosition));
+		leftCap = std::unique_ptr<CameraModel>(new CameraModel(params, params.leftCameraIdx, leftCameraPosition));
+		rightCap = std::unique_ptr<CameraModel>(new CameraModel(params, params.rightCameraIdx, rightCameraPosition));
 #else
-		leftCap = std::unique_ptr<CameraModel>(new MonoCameraView(params.leftCameraIdx, leftCameraPosition));
-		rightCap = std::unique_ptr<CameraModel>(new MonoCameraView(params.rightCameraIdx, rightCameraPosition));
+		leftCap = std::unique_ptr<CameraModel>(new MonoCameraView(params, params.leftCameraIdx, leftCameraPosition));
+		rightCap = std::unique_ptr<CameraModel>(new MonoCameraView(params, params.rightCameraIdx, rightCameraPosition));
 #endif
 
 		if (!rightCap->isOpened() || !leftCap->isOpened())  // check if we succeeded
@@ -256,6 +278,9 @@ void RobotVision::OpenVideoCap()
 		leftCap->set(CV_CAP_PROP_FRAME_HEIGHT, params.LEFT_CAMERA_FOV_HEIGHT);
 
 	}
+
+	depthCalculator = std::shared_ptr<DepthCalculator>(new DepthCalculator(leftCap, rightCap));
+	dispObj->SetRangeFinder(new DisparityRangeFinder(params, depthCalculator));
 
 	{
 		// signal initialization

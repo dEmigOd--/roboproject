@@ -1,3 +1,18 @@
+/*M/////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//	PosixSerial class
+//	implements posix serial io port device
+//
+//	only on linux
+//
+//	Author: Dmitry Rabinovich
+//	Copyright (C) 2016 Technion, IIT
+//
+//	2016, November 19
+//
+//M*/
+
+
 #ifdef __linux__
 
 #include "serial.h"

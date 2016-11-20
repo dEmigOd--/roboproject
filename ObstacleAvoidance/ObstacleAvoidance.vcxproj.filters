@@ -19,6 +19,12 @@
     <Filter Include="Source Files\Camera">
       <UniqueIdentifier>{c7ff90aa-37e6-47dd-b665-4bdd4b61d194}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Parameters">
+      <UniqueIdentifier>{e61dfd54-b0fc-45d8-80dd-d9d7f8f7d8f6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Parameters">
+      <UniqueIdentifier>{8c319f44-0701-4e9f-b7d0-03286022160a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Disparity.h">
@@ -36,9 +42,6 @@
     <ClInclude Include="RobotVision.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Thresholds.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="xstring.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -49,9 +52,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Utils.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Common.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="motors.h">
@@ -78,6 +78,12 @@
     <ClInclude Include="MonoCameraView.h">
       <Filter>Header Files\Camera</Filter>
     </ClInclude>
+    <ClInclude Include="Common.h">
+      <Filter>Header Files\Parameters</Filter>
+    </ClInclude>
+    <ClInclude Include="RobotInputParser.h">
+      <Filter>Header Files\Parameters</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Disparity.cpp">
@@ -101,9 +107,6 @@
     <ClCompile Include="Logger.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Constants.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="posix_serial.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -115,6 +118,12 @@
     </ClCompile>
     <ClCompile Include="CameraModel.cpp">
       <Filter>Source Files\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="Constants.cpp">
+      <Filter>Source Files\Parameters</Filter>
+    </ClCompile>
+    <ClCompile Include="RobotInputParser.cpp">
+      <Filter>Source Files\Parameters</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

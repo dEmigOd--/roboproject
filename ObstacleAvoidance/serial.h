@@ -1,5 +1,18 @@
 #pragma once
 
+/*M/////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//	Serial class
+//	implements abstraction of serial io port device
+//
+//	Author: Dmitry Rabinovich
+//	Copyright (C) 2016 Technion, IIT
+//
+//	2016, November 19
+//
+//M*/
+
+
 #include <memory>
 #include <vector>
 

@@ -1,63 +1,41 @@
-/*
- * Disparity.cpp
- *
- *  Created on: May 16, 2015
- *      Author: ben
- *  Reworked on: September 6, 2016
- *      Author: dEmigOd
- */
+/*M/////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//	Disparity calculations implementation
+//
+//	Author(s): ben, Dmitry Rabinovich
+//	Copyright (C) 2016 Technion, IIT
+//
+//	2016, November 19
+//
+//M*/
+
+
+#include <math.h>
+
+#include <limits>
+#include <fstream>
 
 #include "Disparity.h"
 #include "Common.h"
 #include "Utils.h"
-#include <limits>
-#include <fstream>
-#include <math.h>
 
-cv::Mat DetectEdges(const cv::Mat& image)
+cv::Mat DepthCalculator::GetDepthFromStereo(const cv::Mat& LeftImagePts, const cv::Mat& RightImagePts) const
 {
-	// allocate grayscale matrix of same size as given image
-	cv::Mat edges = cv::Mat::zeros(image.size(), CV_8U);
+	cv::Mat Pts4D, Pts3D;
 
-	// smooth with Gaussian
-	cv::GaussianBlur(image, edges, cv::Size(GAUSS_SIGMA, GAUSS_SIGMA), 0, 0, cv::BORDER_DEFAULT);
-	// apply Laplacian kernel to detect edges
-	cv::Laplacian(edges, edges, CV_8U, LAPLACE_KERN, 1, 0, cv::BORDER_DEFAULT);
+	cv::triangulatePoints(leftCamera->K() * leftCamera->RT(), rightCamera->K() * rightCamera->RT(), LeftImagePts, RightImagePts, Pts4D);
+	cv::convertPointsFromHomogeneous(Pts4D.t(), Pts3D);
 
-	return edges;
+	return Pts3D;
 }
 
-cv::Mat ThresholdEdges(cv::Mat& edges)
-{
-	cv::Mat edgesThresh = cv::Mat::zeros(edges.size(), CV_8U);
-	// i don't see why this is useful - may be making edges broader
-	cv::medianBlur(edges, edges, 3);
-
-	// make edges much more visible
-	cv::threshold(edges, edgesThresh, THRESHOLD, Constants::MAX_COLOR, cv::THRESH_BINARY);
-
-	return edgesThresh;
-}
-
-
-void CalculateDetectableRange(const RunningParameters& params, int& minDetectableDisparity, int& maxDetectableDisparity)
-{
-	// we are mostly interested in decreasing greatly the search space
-	// so we'll only look for matches in 1/3-1/2 seconds away from us
-	double farthest_image_width = 2 * (params.speed * params.speedUnitInMm) * Constants::FARTHEST_DETECTABLE_RANGE * Constants::CAMERA_ANGLE_WIDTH_MULTIPLIER;
-	double closest_image_width = 2 * (params.speed * params.speedUnitInMm) * Constants::CLOSEST_DETECTABLE_RANGE * Constants::CAMERA_ANGLE_WIDTH_MULTIPLIER;
-
-	// in left image only up-to cameras' axis distance detectable should be checked
-	minDetectableDisparity = std::min((int)(Constants::OPTICAL_AXIS_DISTANCE / farthest_image_width * params.LEFT_IMAGE_RESIZED_WIDTH) + 1, params.LEFT_IMAGE_RESIZED_WIDTH);
-	maxDetectableDisparity = std::min((int)(Constants::OPTICAL_AXIS_DISTANCE / closest_image_width * params.LEFT_IMAGE_RESIZED_WIDTH), params.LEFT_IMAGE_RESIZED_WIDTH);
-}
 
 void AdjustDetectableRange(const RunningParameters& params, int& minDetectableDisparity, int& maxDetectableDisparity)
 {
 	int constDisparityDivider = 16;
 	int constBitMask = constDisparityDivider - 1; // 0b1111
 
-	// opencv demands num of detectable disparities to be a multiple of 16
+												  // opencv demands num of detectable disparities to be a multiple of 16
 	int missingTo16 = (int)(unsigned)((minDetectableDisparity - maxDetectableDisparity) & constBitMask);
 	int couldBeAdded = params.LEFT_IMAGE_RESIZED_WIDTH + minDetectableDisparity - maxDetectableDisparity;
 
@@ -102,14 +80,139 @@ void AdjustDetectableRange(const RunningParameters& params, int& minDetectableDi
 	}
 }
 
-void ExtractSignificantEdges(const cv::Mat& left, const cv::Mat& right, cv::Mat& edgesLeft, cv::Mat& edgesRight, cv::Mat& edgesLeftThresh, cv::Mat& edgesRightThresh)
+
+int RangeFinder::GetMinDisparity() const
+{
+	return 0;
+}
+
+int RangeFinder::GetMaxDisparity() const
+{
+	int minDisp, maxDisp = params.RIGHT_IMAGE_RESIZED_WIDTH;
+	AdjustDetectableRange(params, minDisp, maxDisp);
+
+	return maxDisp;
+}
+
+
+void DisparityRangeFinder::DetectDisparities() const
+{
+	int widthDistanceBetweenTestPoints = params.RIGHT_IMAGE_RESIZED_WIDTH / params.NumWidthPixelsToTest;
+	int heightDistanceBetweenTestPoints = params.GetHorizonHeight() / params.NumHeightPixelsToTest;
+	int disparityDistance = widthDistanceBetweenTestPoints / params.DisparitiesToTestRatio;
+
+	int actualWidthPoints = params.RIGHT_IMAGE_RESIZED_WIDTH / widthDistanceBetweenTestPoints;
+	int actualHeightPoints = params.GetHorizonHeight() / heightDistanceBetweenTestPoints;
+
+	cv::Mat camLeftPts = cv::Mat::zeros(2, actualWidthPoints * actualHeightPoints * actualWidthPoints * params.DisparitiesToTestRatio, CV_64F),
+		camRightPts = cv::Mat::zeros(2, actualWidthPoints * actualHeightPoints * actualWidthPoints * params.DisparitiesToTestRatio, CV_64F); //?
+
+	int indx = 0;
+	// prepare points to check
+	for (int row = 0; row < params.GetHorizonHeight(); row += heightDistanceBetweenTestPoints)
+	{
+		for (int col = 0; col < params.RIGHT_IMAGE_RESIZED_WIDTH; col += widthDistanceBetweenTestPoints)
+		{
+			for (int disparity = 0; disparity < col; disparity += disparityDistance)
+			{
+				camLeftPts.at<double>(0, indx) = col;
+				camLeftPts.at<double>(1, indx) = row;
+				camRightPts.at<double>(0, indx) = col - disparity;
+				camRightPts.at<double>(1, indx) = row;
+
+				++indx;
+			}
+		}
+	}
+
+	// get depth from points
+	cv::Mat Pts3D = depthCalculator->GetDepthFromStereo(camLeftPts, camRightPts);
+
+	double farthest_detectable_distance = params.speed * params.speedUnitInMm * Constants::FARTHEST_DETECTABLE_RANGE;
+	double closest_detectable_distance = params.speed * params.speedUnitInMm * Constants::CLOSEST_DETECTABLE_RANGE;
+
+	minDisparity = params.RIGHT_CAMERA_FOV_WIDTH;
+	maxDisparity = -1;
+
+	for (int res = 0; res < Pts3D.rows; ++res)
+	{
+		double detectedDistance = Pts3D.row(res).at<double>(0, 2);
+		if ((detectedDistance >= closest_detectable_distance) && (detectedDistance <= farthest_detectable_distance))
+		{
+			int disparity = camLeftPts.at<double>(0, res) - camRightPts.at<double>(0, res);
+
+			if (disparity < minDisparity)
+			{
+				minDisparity = disparity;
+			}
+
+			if (disparity > maxDisparity)
+			{
+				maxDisparity = disparity;
+			}
+		}
+	}
+
+	AdjustDetectableRange(params, minDisparity, maxDisparity);
+
+	lastCalculatedSpeed = params.speed;
+}
+
+int DisparityRangeFinder::GetMinDisparity() const
+{
+	if (params.speed != lastCalculatedSpeed)
+	{
+		DetectDisparities();
+	}
+
+	return minDisparity;
+}
+
+int DisparityRangeFinder::GetMaxDisparity() const
+{
+	if (params.speed != lastCalculatedSpeed)
+	{
+		DetectDisparities();
+	}
+
+	return maxDisparity;
+}
+
+
+cv::Mat DetectEdges(const RunningParameters& params, const cv::Mat& image)
+{
+	// allocate grayscale matrix of same size as given image
+	cv::Mat edges = cv::Mat::zeros(image.size(), CV_8U);
+
+	// smooth with Gaussian
+	cv::GaussianBlur(image, edges, cv::Size(params.GAUSS_SIGMA, params.GAUSS_SIGMA), 0, 0, cv::BORDER_DEFAULT);
+	// apply Laplacian kernel to detect edges
+	cv::Laplacian(edges, edges, CV_8U, params.LAPLACE_KERN, 1, 0, cv::BORDER_DEFAULT);
+
+	return edges;
+}
+
+cv::Mat ThresholdEdges(const RunningParameters& params, cv::Mat& edges)
+{
+	cv::Mat edgesThresh = cv::Mat::zeros(edges.size(), CV_8U);
+	// i don't see why this is useful - may be making edges broader
+	cv::medianBlur(edges, edges, 3);
+
+	// make edges much more visible
+	cv::threshold(edges, edgesThresh, params.THRESHOLD, Constants::MAX_COLOR, cv::THRESH_BINARY);
+
+	return edgesThresh;
+}
+
+
+void ExtractSignificantEdges(const RunningParameters& params, const cv::Mat& left, const cv::Mat& right, cv::Mat& edgesLeft, cv::Mat& edgesRight, cv::Mat& edgesLeftThresh, cv::Mat& edgesRightThresh)
 {
 	// do it on edges, not original images
-	edgesLeft = DetectEdges(left);
-	edgesRight = DetectEdges(right);
+	edgesLeft = DetectEdges(params, left);
+	edgesRight = DetectEdges(params, right);
 
-	edgesLeftThresh = ThresholdEdges(edgesLeft);
-	edgesRightThresh = ThresholdEdges(edgesRight);
+	edgesLeftThresh = ThresholdEdges(params, edgesLeft);
+	edgesRightThresh = ThresholdEdges(params, edgesRight);
 
 	cv::imshow(Constants::LeftWindowName, edgesLeftThresh);
 	cv::imshow(Constants::RightWindowName, edgesRightThresh);
@@ -158,11 +261,8 @@ cv::Ptr<cv::StereoSGBM> CreateSGBM(const RunningParameters& params, int channels
 cv::Mat SGBMDisparity::ComputeDisparity(const cv::Mat& left, const cv::Mat& right) const
 {
 	// set possible hit region
-	int minDetectableDisparity, maxDetectableDisparity;
-
-	// make a divisable by 16 number of disparities
-	CalculateDetectableRange(params, minDetectableDisparity, maxDetectableDisparity);
-	AdjustDetectableRange(params, minDetectableDisparity, maxDetectableDisparity);
+	int minDetectableDisparity = rangeFinder->GetMinDisparity(), 
+		maxDetectableDisparity = rangeFinder->GetMaxDisparity();
 
 	// make a divisable by 16 number of disparities
 	int numDisparities = maxDetectableDisparity - minDetectableDisparity;
@@ -175,7 +275,7 @@ cv::Mat SGBMDisparity::ComputeDisparity(const cv::Mat& left, const cv::Mat& righ
 	cv::Mat edgesLeftThresh;
 	cv::Mat edgesRightThresh;
 
-	ExtractSignificantEdges(left, right, edgesLeft, edgesRight, edgesLeftThresh, edgesRightThresh);
+	ExtractSignificantEdges(params, left, right, edgesLeft, edgesRight, edgesLeftThresh, edgesRightThresh);
 
 	cv::Mat disparity, disparity16S, maskedDisparity;
 	// compute disparities
@@ -189,7 +289,7 @@ cv::Mat SGBMDisparity::ComputeDisparity(const cv::Mat& left, const cv::Mat& righ
 	// convert to human-acceptable visually
 	disparity.convertTo(disparity16S, CV_16S, 1 / 16.);
 	// now we are only interested in edges, so mask out non-edge stuff
-	disparity16S.copyTo(maskedDisparity, (disparity16S > minDetectableDisparity) & (edgesLeftThresh >= THRESHOLD));
+	disparity16S.copyTo(maskedDisparity, (disparity16S > minDetectableDisparity) & (edgesLeftThresh >= params.THRESHOLD));
 
 	if (params.IsInDebugMathMode())
 	{
@@ -239,7 +339,7 @@ double CompareBlock(int i, int j, int k, int blockSize, const cv::Mat &left, con
 	return (normalizer) ? sad / normalizer : sad;
 }
 
-int ComputeBlockMatch(int i, int j, int blockSize, const cv::Mat& left, const cv::Mat& right, const cv::Mat& edgesLeft, const cv::Mat& edgesRight,
+int ComputeBlockMatch(const RunningParameters& params, int i, int j, int blockSize, const cv::Mat& left, const cv::Mat& right, const cv::Mat& edgesLeft, const cv::Mat& edgesRight,
 	const cv::Mat& leftBlockMap, const cv::Mat& rightBlockMap, const cv::Mat& disparity,
 	std::vector<std::vector<int>>& matchMap, int minDetectableDisparity, int maxDetectableDisparity)
 {
@@ -260,8 +360,8 @@ int ComputeBlockMatch(int i, int j, int blockSize, const cv::Mat& left, const cv
 	double err(0), blockErr(0);
 
 	// in the closest range we could save few more cycles in not scanning till the end
-	int stopK = j - minDetectableDisparity + OBST_THRESHOLD;
-	int startK = std::max(0, j - maxDetectableDisparity - OBST_THRESHOLD);
+	int stopK = j - minDetectableDisparity + params.OBST_THRESHOLD;
+	int startK = std::max(0, j - maxDetectableDisparity - params.OBST_THRESHOLD);
 
 	// ignore objects in infinity or too far away, same j !
 	for (int k = stopK - 1; k >= startK; --k)
@@ -292,6 +392,7 @@ int ComputeBlockMatch(int i, int j, int blockSize, const cv::Mat& left, const cv
 			}
 		}
 	}
+
 	sort(matches.begin(), matches.end());
 	std::vector<std::pair<double, int>>::iterator it = matches.begin();
 
@@ -310,10 +411,10 @@ int ComputeBlockMatch(int i, int j, int blockSize, const cv::Mat& left, const cv
 	secondErr = *it++;
 
 
-	if ((secondErr.first - firstErr.first) / secondErr.first < ERROR_THRESHOLD)
+	if ((secondErr.first - firstErr.first) / secondErr.first < params.ERROR_THRESHOLD)
 	{
 		// some kind of pattern detection
-		if (abs(secondErr.second - firstErr.second) <= DIST_THRESHOLD)
+		if (abs(secondErr.second - firstErr.second) <= params.DIST_THRESHOLD)
 		{
 			if (it == matches.end())
 			{
@@ -321,7 +422,7 @@ int ComputeBlockMatch(int i, int j, int blockSize, const cv::Mat& left, const cv
 			}
 
 			thirdErr = *it;
-			if ((thirdErr.first - firstErr.first) / thirdErr.first < ERROR_THRESHOLD)
+			if ((thirdErr.first - firstErr.first) / thirdErr.first < params.ERROR_THRESHOLD)
 			{
 				return 0;
 			}
@@ -337,8 +438,6 @@ int ComputeBlockMatch(int i, int j, int blockSize, const cv::Mat& left, const cv
 }
 
 
-// BEWARE
-// should not be working - need to adjust to OpenCV, positive disparities are to the left of searched point and not right !!!!!
 cv::Mat HomeGrownDisparity::ComputeDisparity(const cv::Mat& left, const cv::Mat& right) const
 {
 	cv::Mat edgesLeft;
@@ -346,24 +445,24 @@ cv::Mat HomeGrownDisparity::ComputeDisparity(const cv::Mat& left, const cv::Mat&
 	cv::Mat edgesLeftThresh;
 	cv::Mat edgesRightThresh;
 
-	ExtractSignificantEdges(left, right, edgesLeft, edgesRight, edgesLeftThresh, edgesRightThresh);
+	ExtractSignificantEdges(params, left, right, edgesLeft, edgesRight, edgesLeftThresh, edgesRightThresh);
 
 	cv::Mat disparity = cv::Mat::zeros(edgesLeft.size(), CV_16S);
 
 	std::vector<std::vector<int>> matchMap(disparity.rows, std::vector<int>(disparity.cols, 0));
 
 	// set possible hit region
-	int minDetectableDisparity, maxDetectableDisparity;
-	CalculateDetectableRange(params, minDetectableDisparity, maxDetectableDisparity);
+	int minDetectableDisparity = rangeFinder->GetMinDisparity(),
+		maxDetectableDisparity = rangeFinder->GetMaxDisparity();
 
 
 	// only down to horizon to suppress matching ground points
 	for (int i = 0; i < params.GetHorizonHeight(); ++i)
 	{
 		// proceed with a horizontal scan
-		for (int j = minDetectableDisparity; j < disparity.cols; ++j)
+		for (int j = minDetectableDisparity; j < left.cols; ++j)
 		{
-            int disp = ComputeBlockMatch(i, j, params.nBlockSize, right, left, edgesRight, edgesLeft, edgesRightThresh, edgesLeftThresh, disparity, matchMap,
+            int disp = ComputeBlockMatch(params, i, j, params.nBlockSize, right, left, edgesRight, edgesLeft, edgesRightThresh, edgesLeftThresh, disparity, matchMap,
 				minDetectableDisparity, maxDetectableDisparity);
 			// if found matching block store its disparity off mine image
 			// disparity is positive - we preserve j - k difference between right image coordinate and left

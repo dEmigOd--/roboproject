@@ -1,3 +1,16 @@
+/*M/////////////////////////////////////////////////////////////////////////////////////////////////////
+//  IMPORTANT: READ BEFORE USING.
+//
+//	Logger class
+//	implements logging to file using easylogger
+//
+//	Author: Dmitry Rabinovich
+//	Copyright (C) 2016 Technion, IIT
+//
+//	2016, November 19
+//
+//M*/
+
 #include "Logger.h"
 
 const std::string Logger::CONFIGFILE = "EasyLogging.config";

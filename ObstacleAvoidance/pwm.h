@@ -1,6 +1,22 @@
 #pragma once
 
+/*M/////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//	PWM class
+//	implements abstraction layer to execute actual movement of the robot
+//
+//	inhereted from pervious project
+//
+//	Author: ben, Dmitry Rabinovich
+//	Copyright (C) 2016 Technion, IIT
+//
+//	2016, November 19
+//
+//M*/
+
+
 #include <memory>
+
 #include "Common.h"
 
 class PWM

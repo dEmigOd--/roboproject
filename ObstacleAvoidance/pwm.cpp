@@ -1,3 +1,15 @@
+/*M/////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//	PWM classes
+//	implements pwm-based commands to actually different (non-PWM) hardware
+//
+//	Author: Dmitry Rabinovich
+//	Copyright (C) 2016 Technion, IIT
+//
+//	2016, November 19
+//
+//M*/
+
 #include <iostream>
 #include <fstream>
 #include <cstdlib>

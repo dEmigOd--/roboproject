@@ -1,13 +1,26 @@
 #pragma once
 
+/*M/////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//	implements common utils used throughout the solution
+//
+//	Author: Dmitry Rabinovich
+//	Copyright (C) 2016 Technion, IIT
+//
+//	2016, November 19
+//
+//M*/
+
+
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <fstream>
 #include <string>
 #include <vector>
+
 #define NOMINMAX
-#include "opencv2/core/core.hpp"
+#include "OpenCv.h"
 
 #define CREATE_ENUM(name, ...) enum class name { __VA_ARGS__, __COUNT}; \
 inline std::ostream& operator<<(std::ostream& os, name value) { \

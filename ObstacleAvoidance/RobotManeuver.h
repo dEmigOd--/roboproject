@@ -1,10 +1,26 @@
 #pragma once
 
+/*M/////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//	RobotManeuver class
+//	implements abstraction layer to execute maneuvering, i.e. around obstacle, not only turn or move
+//
+//	inhereted from pervious project
+//
+//	Author: ben, Dmitry Rabinovich
+//	Copyright (C) 2016 Technion, IIT
+//
+//	2016, November 19
+//
+//M*/
+
+
 #include <iostream>
 #include <functional>
 #include <chrono>
 #include <future>
 #include <queue>
+
 #include "Common.h"
 #include "RobotController.h"
 #include "ObstacleAvoider.h"
@@ -38,8 +54,9 @@ class RobotManeuver
 	RobotController robot;
 	ObstacleAvoider navigator;
 	RunningParameters& params;
+
 	typedef void (RobotManeuver::*CmdFunc)();
-	// both return evaluated time of action in milliseconds
+
 	void Maneuver(CmdFunc firstFunc,CmdFunc secondFunc);
 	void Maneuver2(CmdFunc firstFunc,CmdFunc secondFunc);
 
@@ -73,7 +90,6 @@ public:
 	void SmoothRight();
 	void SmoothLeft();
 
-	// next functions return evaluated time of action in milliseconds
 	void Turn90Deg(DirectionEnum dir);
 	void ForwardStep(double factor = 1);
 	void ManeuverRight();

@@ -1,6 +1,24 @@
 #pragma once
 
+/*M/////////////////////////////////////////////////////////////////////////////////////////////////////
+//  IMPORTANT: READ BEFORE USING.
+//
+//	RobotMotors class
+//	implements abstraction layer for robot motors
+//
+//	*	two motors present [right abd left]
+//	*	motors are connected to Arduino actually, which is in turn connected through USB
+//	*	so this is platform dependent
+//
+//	Author: Dmitry Rabinovich
+//	Copyright (C) 2016 Technion, IIT
+//
+//	2016, November 19
+//
+//M*/
+
 #include <thread>
+
 #include "serial.h"
 #include "xstring.h"
 

@@ -1,10 +1,25 @@
 #pragma once
 
-#include "pwm.h"
-#include "Logger.h"
-#include "Common.h"
+/*M/////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//	RobotController class
+//	implements real abstraction layer to execute actual movement of the robot, without notion of wheels
+//
+//	inhereted from pervious project
+//
+//	Author: ben, Dmitry Rabinovich
+//	Copyright (C) 2016 Technion, IIT
+//
+//	2016, November 19
+//
+//M*/
+
 #include <iostream>
 #include <map>
+
+#include "Logger.h"
+#include "Common.h"
+#include "pwm.h"
 
 class RobotController
 {

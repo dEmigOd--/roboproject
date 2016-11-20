@@ -1,3 +1,15 @@
+/*M/////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//	RobotManeuver class
+//	implementation with command queue in producer-consumer mode
+//
+//	Author: ben, Dmitry Rabinovich
+//	Copyright (C) 2016 Technion, IIT
+//
+//	2016, November 19
+//
+//M*/
+
 #include "RobotManeuver.h"
 
 el::Logger* RobotManeuver::creatorLogger = el::Loggers::getLogger("Maneuver-ADD");

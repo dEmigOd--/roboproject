@@ -1,14 +1,30 @@
-#include "SerialPort.h"
+/*M/////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//	SerialPort class
+//	implements linux low-level serial io port device
+//
+//	Author: Dmitry Rabinovich
+//	Copyright (C) 2016 Technion, IIT
+//
+//	2016, November 19
+//
+//M*/
+
 
 #ifdef __linux__
-#include <string>
-#include <cstring>
-#include <cerrno>
-#include <stdexcept>
-#include <vector>
 #include <fcntl.h>    /* For O_RDWR */
 #include <unistd.h>   /* For open(), creat() */
 #include <termios.h>
+
+#include <cstring>
+#include <cerrno>
+
+#include <string>
+#include <stdexcept>
+#include <vector>
+
+#include "SerialPort.h"
+
 
 el::Logger* SerialPort::logger = el::Loggers::getLogger("ttyUSB0");
 

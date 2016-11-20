@@ -1,7 +1,23 @@
 #pragma once
 
-#include "Utils.h"
+/*M/////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//	RunningParameters class
+//	implements parameters which could be changed during system run, incl. only on startup
+//
+//	*	if you want more things to be controlable w/o recompilation
+//
+//	Author: Dmitry Rabinovich
+//	Copyright (C) 2016 Technion, IIT
+//
+//	2016, November 19
+//
+//M*/
+
+
 #include <chrono>
+
+#include "Utils.h"
 
 enum MatchingAlgorithm
 {
@@ -27,9 +43,7 @@ public :
 	static const std::string MatchesWindowName;
 	static const std::string LeftWindowName;
 	static const std::string RightWindowName;
-
 	static const std::chrono::duration<long long, std::milli> CAPTURE_FROM_CAMERA_INTERVAL;
-	static const double CAMERA_ANGLE_WIDTH_MULTIPLIER; // 42 degrees, half of it 21
 	static const double CLOSEST_DETECTABLE_RANGE;
 	static const double FARTHEST_DETECTABLE_RANGE;
 	static const double OPTICAL_AXIS_DISTANCE; // mm
@@ -44,18 +58,22 @@ public :
 class RunningParameters
 {
 private:
-	const static int MAX_RECORD = 65536;
-	const static int MAX_ZERO_NUM = 5;
+	static const int MAX_RECORD = 65536;
+	static const int MAX_ZERO_NUM = 5;
 
-	const static std::string ImagesDirName;
-	const static std::string OutputDirName;
+	static const std::string ImagesDirName;
+	static const std::string OutputDirName;
+	static const std::string CalibrationDirName;
 
-	const static std::string BaseName;
-	const static std::string ImageExtensionName;
-	const static std::string MatExtensionName;
-	const static std::string Separator;
-	const static std::string LeftSuffix;
-	const static std::string RightSuffix;
+	static const std::string CameraCalibrationDataFileName;
+	static const std::string CameraCalibrationDataFileExtension;
+
+	static const std::string BaseName;
+	static const std::string ImageExtensionName;
+	static const std::string MatExtensionName;
+	static const std::string Separator;
+	static const std::string LeftSuffix;
+	static const std::string RightSuffix;
 
 	mutable int currentImageIndex = 0;
 
@@ -72,7 +90,6 @@ public:
 	double speedUnitInMm = 7.0;
 
 	double spinMultiplierOnTurns = 4.0;
-	double ignoreFarPointsInSecAway = 0.6;
 	int AcceptableDepthOffset = 2;
 
 	int leftCameraIdx = 1;
@@ -94,10 +111,29 @@ public:
 	int RIGHT_IMAGE_RESIZED_WIDTH = RIGHT_CAMERA_FOV_WIDTH / Constants::RESIZE_FACTOR;
 	int RIGHT_IMAGE_RESIZED_HEIGHT = RIGHT_CAMERA_FOV_HEIGHT / Constants::RESIZE_FACTOR;
 
+	// pixels at them we'll pre-test disparities to have a clue, what are the ranges at given speed
+	int NumWidthPixelsToTest = 40;
+	int NumHeightPixelsToTest = 16;
+	int DisparitiesToTestRatio = 2;
+
 	std::string wrkDir = "";
+	bool smoothTurn = true;
+
+/////// SECTION INHERETED FROM PREVIOUS PROJECT ////////
 
 	int nBlockSize = 9;
+	int THRESHOLD;
+	int DENSITY;
+	int OBST_THRESHOLD;
+	int NPTS;
+	int EVENT_THRESHOLD;
+	double ERROR_THRESHOLD;
+	int GAUSS_SIGMA;
+	int LAPLACE_KERN;
+	int DIST_THRESHOLD;
+	int tresh;
 
+////// METHODS /////
 	int GetHorizonHeight() const
 	{
 		return LEFT_IMAGE_RESIZED_HEIGHT / 2;
@@ -162,6 +198,12 @@ public:
 	{
 		return wrkDir + Separator + OutputDirName + Separator + wantedName + PadWithZeroes(currentImageIndex, RunningParameters::MAX_ZERO_NUM) + MatExtensionName;
 	}
+
+	std::string BuildCameraConfigFilename(int cameraId) const
+	{
+		return wrkDir + Separator + CalibrationDirName + Separator + CameraCalibrationDataFileName + std::to_string(cameraId) + CameraCalibrationDataFileExtension;
+	}
+
 private:
 	std::string BuildImageName(const std::string& suffix) const
 	{

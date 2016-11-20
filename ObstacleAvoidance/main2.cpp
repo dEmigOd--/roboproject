@@ -1,15 +1,34 @@
+/*M/////////////////////////////////////////////////////////////////////////////////////////////////////
+//  IMPORTANT: READ BEFORE USING.
+//
+//	main
+//	implements control loop for robot
+//
+//	*	creates UI windows
+//	*	organizes user interaction
+//	*	controls robot movement, in terms of giving response to detected obstacle
+//
+//	Author(s): ben, Dmitry Rabinovich
+//	Copyright (C) 2016 Technion, IIT
+//
+//	2016, November 19
+//
+//M*/
+
 #include <iostream>
-#include "RobotManeuver.h"
-#include "RobotVision.h"
 #ifdef __linux__ 
 #include <unistd.h>
 #elif _WIN32
 #include <io.h>
 #endif
-#include "Thresholds.h"
+
 #include "Logger.h"
 #include "Common.h"
+#include "RobotInputParser.h"
+#include "RobotManeuver.h"
+#include "RobotVision.h"
 
+// keyboard keys, which controls the robot
 #define KEY_UP 65362
 #define KEY_DOWN 65364
 #define KEY_LEFT 65361
@@ -19,55 +38,30 @@
 #define KEY_STOP 65461 // KP_5
 #define KEY_RIGHT_SHARP 65462 // KP_6
 
-const std::string RunningParameters::BaseName = "RobotFov";
-const std::string RunningParameters::ImageExtensionName = ".png";
-const std::string RunningParameters::MatExtensionName = ".mat";
-const std::string RunningParameters::Separator = "/";
-const std::string RunningParameters::LeftSuffix = "_" + Constants::LeftWindowName + "_";
-const std::string RunningParameters::RightSuffix = "_" + Constants::RightWindowName + "_";
-const std::string RunningParameters::ImagesDirName = "images";
-const std::string RunningParameters::OutputDirName = "output";
-
-int THRESHOLD = 30;
-int DENSITY = 5;
-int OBST_THRESHOLD = 0;
-int NPTS = 12;
-int EVENT_THRESHOLD = 1;
-double ERROR_THRESHOLD = 0.8;
-int GAUSS_SIGMA = 5;
-int LAPLACE_KERN = 3;
-int DIST_THRESHOLD = 8;
-
-int tresh = 80;
-int odd = 3;
-
-bool smoothTurn = true;
-
 std::mutex syncronizer;
 // create logger for main part
 el::Logger* logger = Logger::GetLogger("main");
-
 
 struct CallbackData
 {
 	cv::Mat disparity;
 	RunningParameters params;
+	std::shared_ptr<DepthCalculator> depthCalculator;
 };
 
-bool CaseInsensitiveStringCompare(const std::string& str1, const std::string& str2)
+void InitializeUserControllerValues(RunningParameters& params)
 {
-	if (str1.size() != str2.size())
-	{
-		return false;
-	}
-	for (std::string::const_iterator c1 = str1.begin(), c2 = str2.begin(); c1 != str1.end(); ++c1, ++c2)
-	{
-		if (tolower(*c1) != tolower(*c2))
-		{
-			return false;
-		}
-	}
-	return true;
+	params.THRESHOLD = 30;
+	params.DENSITY = 5;
+	params.OBST_THRESHOLD = 0;
+	params.NPTS = 12;
+	params.EVENT_THRESHOLD = 1;
+	params.ERROR_THRESHOLD = 0.8;
+	params.GAUSS_SIGMA = 5;
+	params.LAPLACE_KERN = 3;
+	params.DIST_THRESHOLD = 8;
+	params.tresh = 80;
+	params.smoothTurn = true;
 }
 
 void TrackBarFunc(int num, void* x)
@@ -90,10 +84,24 @@ void TrackBarFuncOdd(int num, void* x)
 	*param = num | 0x1;
 }
 
+double GetDistanceToPoint(const DepthCalculator& depthCalculator, int row, int col, int disparity)
+{
+	cv::Mat camLeftPts = cv::Mat::zeros(2, 1, CV_64F),
+		camRightPts = cv::Mat::zeros(2, 1, CV_64F); //?
+
+	camLeftPts.at<double>(0, 0) = col;
+	camLeftPts.at<double>(1, 0) = row;
+	camRightPts.at<double>(0, 0) = col - disparity;
+	camRightPts.at<double>(1, 0) = row;
+
+	cv::Mat Pts3D = depthCalculator.GetDepthFromStereo(camLeftPts, camRightPts);
+
+	return Pts3D.row(0).at<double>(0, 2);
+}
+
 void CallBackFunc(int event, int j, int i, int flags, void* userdata)
 {
 	CallbackData* data = (CallbackData*)userdata;
-	double dist = 0;
 	if (event == cv::EVENT_LBUTTONDOWN)
 	{
 		int row = i;
@@ -103,135 +111,12 @@ void CallBackFunc(int event, int j, int i, int flags, void* userdata)
 			std::cout << "Click on left image" << std::endl;
 			return;
 		}
+
 		int x = (int)(data->disparity.at<short>(row, col));
-		dist = Constants::OPTICAL_AXIS_DISTANCE * data->params.LEFT_CAMERA_FOV_WIDTH / (x * 2 * Constants::CAMERA_ANGLE_WIDTH_MULTIPLIER);
 
 		std::cout << "position (" << row << ", " << col << "). Distance is "
-			<< dist << " mm , disparity is " << x << " pixels" << std::endl;
+			<< GetDistanceToPoint(*data->depthCalculator, row, col, x) << " mm , disparity is " << x << " pixels" << std::endl;
 	}
-}
-
-RunningParameters ParseInputArguments(int argc, char* argv[])
-{
-	RunningParameters params;
-
-	for (int currentArgN = 1; currentArgN < argc; ++currentArgN)
-	{
-		if (CaseInsensitiveStringCompare(argv[currentArgN], "--record"))
-		{
-			params.SetRecordMode();
-			continue;
-		}
-
-		if (CaseInsensitiveStringCompare(argv[currentArgN], "--replay"))
-		{
-			params.SetReplayMode();
-			continue;
-		}
-
-		if (CaseInsensitiveStringCompare(argv[currentArgN], "--workDir"))
-		{
-			params.wrkDir = argv[++currentArgN];
-			continue;
-		}
-
-		if (CaseInsensitiveStringCompare(argv[currentArgN], "--maxRecord"))
-		{
-			params.numToRecord = atoi(argv[++currentArgN]);
-			continue;
-		}
-
-		if (CaseInsensitiveStringCompare(argv[currentArgN], "--frequency"))
-		{
-			params.frequency = std::chrono::milliseconds(atoi(argv[++currentArgN]));
-			continue;
-		}
-
-		if (CaseInsensitiveStringCompare(argv[currentArgN], "--speed"))
-		{
-			params.speed = atoi(argv[++currentArgN]);
-			continue;
-		}
-
-		if (CaseInsensitiveStringCompare(argv[currentArgN], "--turnMultiplier"))
-		{
-			params.spinMultiplierOnTurns = atof(argv[++currentArgN]);
-			continue;
-		}
-
-		if (CaseInsensitiveStringCompare(argv[currentArgN], "--dontMove"))
-		{
-			params.shouldMove = false;
-			continue;
-		}
-
-		if (CaseInsensitiveStringCompare(argv[currentArgN], "--debugCameras"))
-		{
-			params.debugCameras = true;
-			continue;
-		}
-
-		if (CaseInsensitiveStringCompare(argv[currentArgN], "--debugMath"))
-		{
-			params.debugMath = true;
-			continue;
-		}
-
-		if (CaseInsensitiveStringCompare(argv[currentArgN], "--width"))
-		{
-			int width = atoi(argv[++currentArgN]);
-			params.LEFT_CAMERA_FOV_WIDTH = width;
-			params.RIGHT_CAMERA_FOV_WIDTH = width;
-			params.LEFT_IMAGE_RESIZED_WIDTH = params.LEFT_CAMERA_FOV_WIDTH / Constants::RESIZE_FACTOR;
-			params.RIGHT_IMAGE_RESIZED_WIDTH = params.RIGHT_CAMERA_FOV_WIDTH / Constants::RESIZE_FACTOR;
-			logger->trace("Width read: %v", width);
-			continue;
-		}
-
-		if (CaseInsensitiveStringCompare(argv[currentArgN], "--height"))
-		{
-			int width = atoi(argv[++currentArgN]);
-			params.LEFT_CAMERA_FOV_HEIGHT = width;
-			params.RIGHT_CAMERA_FOV_HEIGHT = width;
-			params.LEFT_IMAGE_RESIZED_HEIGHT = params.LEFT_CAMERA_FOV_HEIGHT / Constants::RESIZE_FACTOR;
-			params.RIGHT_IMAGE_RESIZED_HEIGHT = params.RIGHT_CAMERA_FOV_HEIGHT / Constants::RESIZE_FACTOR;
-			logger->trace("Height read: %v", width);
-			continue;
-		}
-
-		if (CaseInsensitiveStringCompare(argv[currentArgN], "--leftCameraIndex"))
-		{
-			params.leftCameraIdx = atoi(argv[++currentArgN]);
-			continue;
-		}
-
-		if (CaseInsensitiveStringCompare(argv[currentArgN], "--rightCameraIndex"))
-		{
-			params.leftCameraIdx = atoi(argv[++currentArgN]);
-			continue;
-		}
-
-		if (CaseInsensitiveStringCompare(argv[currentArgN], "--useAmatuerForMatching"))
-		{
-			params.useOpenCVAlgorihmForMatching = MatchingAlgorithm::OWN_BLOCKMATCHING;
-			continue;
-		}
-
-		if (CaseInsensitiveStringCompare(argv[currentArgN], "--blockSize"))
-		{
-			params.nBlockSize = atoi(argv[++currentArgN]);
-			continue;
-		}
-
-		if (CaseInsensitiveStringCompare(argv[currentArgN], "--ignoreFarPoints"))
-		{
-			params.ignoreFarPointsInSecAway = atof(argv[++currentArgN]);
-			continue;
-		}
-
-	}
-
-	return params;
 }
 
 int RunRobot(RobotManeuver& robotManeuver, RobotVision& robotVision, CallbackData& data)
@@ -261,7 +146,7 @@ int RunRobot(RobotManeuver& robotManeuver, RobotVision& robotVision, CallbackDat
 				eventsCounter++;
 				logger->debug("Current event counter is: %v", eventsCounter);
 
-				if (eventsCounter >= EVENT_THRESHOLD)
+				if (eventsCounter >= data.params.EVENT_THRESHOLD)
 				{
 
 					switch (eSide)
@@ -301,13 +186,13 @@ int RunRobot(RobotManeuver& robotManeuver, RobotVision& robotVision, CallbackDat
 					robotManeuver.ImmediateStop();
 					break;
 				case KEY_LEFT:
-					smoothTurn ? robotManeuver.SmoothLeft() : robotManeuver.Left();
+					data.params.smoothTurn ? robotManeuver.SmoothLeft() : robotManeuver.Left();
 					break;
 				case KEY_LEFT_SHARP:
 					robotManeuver.Turn90Deg(RobotManeuver::LEFT);
 					break;
 				case KEY_RIGHT:
-					smoothTurn ? robotManeuver.SmoothRight() : robotManeuver.Right();
+					data.params.smoothTurn ? robotManeuver.SmoothRight() : robotManeuver.Right();
 					break;
 				case KEY_RIGHT_SHARP:
 					robotManeuver.Turn90Deg(RobotManeuver::RIGHT);
@@ -363,10 +248,10 @@ int RunRobot(RobotManeuver& robotManeuver, RobotVision& robotVision, CallbackDat
 				}
 				break;
 			case 't': // smooth turns
-				smoothTurn = true;
+				data.params.smoothTurn = true;
 				break;
-			case 'y':
-				smoothTurn = false;
+			case 'y': // hard turns
+				data.params.smoothTurn = false;
 			default:
 				break;
 		}
@@ -380,14 +265,12 @@ int main(int argc, char* argv[])
 	// initialize logging in the program
 	Logger::Initialize();
 
-	//// read config from file
-	//RobotConfig appConfig;
-	//appConfig.ReloadConfig();
-
 	logger->info("------------- New Session -------------");
 
 	CallbackData data;
-	data.params = ParseInputArguments(argc, argv);
+	data.params = RobotInputParser::ParseInputArguments(argc, argv);
+
+	InitializeUserControllerValues(data.params);
 
 	cv::namedWindow(Constants::MatchesWindowName, CV_WINDOW_NORMAL);
 	cv::namedWindow(Constants::RightWindowName, CV_WINDOW_NORMAL);
@@ -400,15 +283,15 @@ int main(int argc, char* argv[])
 		Constants::IMAGE_STRETCH_FACTOR * data.params.RIGHT_IMAGE_RESIZED_WIDTH / Constants::IMAGE_COMPRESS_FACTOR,
 		Constants::IMAGE_STRETCH_FACTOR * data.params.RIGHT_IMAGE_RESIZED_HEIGHT / Constants::IMAGE_COMPRESS_FACTOR);
 
-	cv::createTrackbar("THRESHOLD", Constants::MatchesWindowName, &THRESHOLD, 120, TrackBarFunc);
-	cv::createTrackbar("DENSITY", Constants::MatchesWindowName, &DENSITY, 20, TrackBarFunc);
-	cv::createTrackbar("NPTS", Constants::MatchesWindowName, &NPTS, 100, TrackBarFunc);
-	cv::createTrackbar("EVENT_THRESHOLD", Constants::MatchesWindowName, &EVENT_THRESHOLD, 10, TrackBarFunc);
+	cv::createTrackbar("THRESHOLD", Constants::MatchesWindowName, &data.params.THRESHOLD, 120, TrackBarFunc);
+	cv::createTrackbar("DENSITY", Constants::MatchesWindowName, &data.params.DENSITY, 20, TrackBarFunc);
+	cv::createTrackbar("NPTS", Constants::MatchesWindowName, &data.params.NPTS, 100, TrackBarFunc);
+	cv::createTrackbar("EVENT_THRESHOLD", Constants::MatchesWindowName, &data.params.EVENT_THRESHOLD, 10, TrackBarFunc);
 	cv::createTrackbar("BLOCK_SIZE", Constants::MatchesWindowName, &data.params.nBlockSize, 20, TrackBarFuncOdd, &data.params.nBlockSize);
-	cv::createTrackbar("ERROR_THRESHOLD", Constants::MatchesWindowName, &tresh, Constants::CONVERT_TO_PERCENT, TrackBarFuncTresh, &ERROR_THRESHOLD);
-	cv::createTrackbar("GAUSS_SIGMA", Constants::MatchesWindowName, &GAUSS_SIGMA, 10, TrackBarFuncOdd, &GAUSS_SIGMA);
-	cv::createTrackbar("LAPLACE_KERN", Constants::MatchesWindowName, &LAPLACE_KERN, 10, TrackBarFuncOdd, &LAPLACE_KERN);
-	cv::createTrackbar("OBST_THRESHOLD", Constants::MatchesWindowName, &OBST_THRESHOLD, 25, TrackBarFunc);
+	cv::createTrackbar("ERROR_THRESHOLD", Constants::MatchesWindowName, &data.params.tresh, Constants::CONVERT_TO_PERCENT, TrackBarFuncTresh, &data.params.ERROR_THRESHOLD);
+	cv::createTrackbar("GAUSS_SIGMA", Constants::MatchesWindowName, &data.params.GAUSS_SIGMA, 10, TrackBarFuncOdd, &data.params.GAUSS_SIGMA);
+	cv::createTrackbar("LAPLACE_KERN", Constants::MatchesWindowName, &data.params.LAPLACE_KERN, 10, TrackBarFuncOdd, &data.params.LAPLACE_KERN);
+	cv::createTrackbar("OBST_THRESHOLD", Constants::MatchesWindowName, &data.params.OBST_THRESHOLD, 25, TrackBarFunc);
 
 	RobotManeuver robotManeuver(data.params);
 	RobotVision robotVision(syncronizer, data.params);
@@ -421,5 +304,7 @@ int main(int argc, char* argv[])
 		return robotVision.initialized;
 	});
 
+	// here robotVision initialized already
+	data.depthCalculator = robotVision.depthCalculator;
 	return RunRobot(robotManeuver, robotVision, data);
 }
