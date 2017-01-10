@@ -4,9 +4,9 @@
 //	implementation
 //
 //	Author: ben, Dmitry Rabinovich
-//	Copyright (C) 2016 Technion, IIT
+//	Copyright (C) 2016-2017 Technion, IIT
 //
-//	2016, November 19
+//	2017, January 10
 //
 //M*/
 
@@ -15,6 +15,7 @@
 #include "RobotVision.h"
 #include "Utils.h"
 #include "MonoCameraView.h"
+#include "RecordedCamera.h"
 
 const cv::Scalar RED(0, 0, 255); // left
 const cv::Scalar GREEN(0, 255, 0); // no
@@ -249,11 +250,11 @@ void RobotVision::OpenVideoCap()
 {
 	logger->debug("Initializing cameras ...");
 
+	cv::Vec3d leftCameraPosition = cv::Vec3d({ -Constants::OPTICAL_AXIS_DISTANCE / 2, 0.0, 0.0 });
+	cv::Vec3d rightCameraPosition = cv::Vec3d({ Constants::OPTICAL_AXIS_DISTANCE / 2, 0.0, 0.0 });
+
 	if (!params.IsInReplayMode())
 	{
-		cv::Vec3d leftCameraPosition = cv::Vec3d({ -Constants::OPTICAL_AXIS_DISTANCE / 2, 0.0, 0.0 });
-		cv::Vec3d rightCameraPosition = cv::Vec3d({ Constants::OPTICAL_AXIS_DISTANCE / 2, 0.0, 0.0 });
-
 #ifdef __linux__
 		leftCap = std::unique_ptr<CameraModel>(new CameraModel(params, params.leftCameraIdx, leftCameraPosition));
 		rightCap = std::unique_ptr<CameraModel>(new CameraModel(params, params.rightCameraIdx, rightCameraPosition));
@@ -261,23 +262,27 @@ void RobotVision::OpenVideoCap()
 		leftCap = std::unique_ptr<CameraModel>(new MonoCameraView(params, params.leftCameraIdx, leftCameraPosition));
 		rightCap = std::unique_ptr<CameraModel>(new MonoCameraView(params, params.rightCameraIdx, rightCameraPosition));
 #endif
-
-		if (!rightCap->isOpened() || !leftCap->isOpened())  // check if we succeeded
-		{
-			logger->error("Camera(s) initialization failed. Left opened=%v, Right opened=%v", rightCap->isOpened(), leftCap->isOpened());
-			CV_Error(CV_StsInternal, "At least one camera failed to initialize.");
-		}
-
-		// some wonderful properties of ld, which was unable to resolve those static const ints to ints
-		logger->info("Setting right camera FOV to %v-by-%v", (int)params.RIGHT_CAMERA_FOV_WIDTH, (int)params.RIGHT_CAMERA_FOV_HEIGHT);
-		rightCap->set(CV_CAP_PROP_FRAME_WIDTH, params.RIGHT_CAMERA_FOV_WIDTH);
-		rightCap->set(CV_CAP_PROP_FRAME_HEIGHT, params.RIGHT_CAMERA_FOV_HEIGHT);
-
-		logger->info("Setting left camera FOV to %v-by-%v", (int)params.LEFT_CAMERA_FOV_WIDTH, (int)params.LEFT_CAMERA_FOV_HEIGHT);
-		leftCap->set(CV_CAP_PROP_FRAME_WIDTH, params.LEFT_CAMERA_FOV_WIDTH);
-		leftCap->set(CV_CAP_PROP_FRAME_HEIGHT, params.LEFT_CAMERA_FOV_HEIGHT);
-
 	}
+	else
+	{
+		leftCap = std::unique_ptr<CameraModel>(new RecordedCameraView(params, params.leftCameraIdx, leftCameraPosition));
+		rightCap = std::unique_ptr<CameraModel>(new RecordedCameraView(params, params.rightCameraIdx, rightCameraPosition));
+	}
+
+	if (!rightCap->isOpened() || !leftCap->isOpened())  // check if we succeeded
+	{
+		logger->error("Camera(s) initialization failed. Left opened=%v, Right opened=%v", rightCap->isOpened(), leftCap->isOpened());
+		CV_Error(CV_StsInternal, "At least one camera failed to initialize.");
+	}
+
+	// some wonderful properties of ld, which was unable to resolve those static const ints to ints
+	logger->info("Setting right camera FOV to %v-by-%v", (int)params.RIGHT_CAMERA_FOV_WIDTH, (int)params.RIGHT_CAMERA_FOV_HEIGHT);
+	rightCap->set(CV_CAP_PROP_FRAME_WIDTH, params.RIGHT_CAMERA_FOV_WIDTH);
+	rightCap->set(CV_CAP_PROP_FRAME_HEIGHT, params.RIGHT_CAMERA_FOV_HEIGHT);
+
+	logger->info("Setting left camera FOV to %v-by-%v", (int)params.LEFT_CAMERA_FOV_WIDTH, (int)params.LEFT_CAMERA_FOV_HEIGHT);
+	leftCap->set(CV_CAP_PROP_FRAME_WIDTH, params.LEFT_CAMERA_FOV_WIDTH);
+	leftCap->set(CV_CAP_PROP_FRAME_HEIGHT, params.LEFT_CAMERA_FOV_HEIGHT);
 
 	depthCalculator = std::shared_ptr<DepthCalculator>(new DepthCalculator(leftCap, rightCap));
 	dispObj->SetRangeFinder(new DisparityRangeFinder(params, depthCalculator));
@@ -297,27 +302,13 @@ void RobotVision::SafeCaptureFromCam()
 {
 	std::lock_guard<std::mutex> lock(mut);
 
-	if (params.IsInReplayMode())
+	if (!params.ShouldProcessVideo())
 	{
-		if (!params.ShouldProcessVideo())
-		{
-			return;
-		}
-
-		if (!params.NoMoreImagesLeft())
-		{
-			int imageIndexToRead = params.PrepareForNextImage();
-			logger->trace("Reading image %v", PadWithZeroes(imageIndexToRead, 4));
-		}
-
-		left = cv::imread(params.BuildLeftImageName());
-		right = cv::imread(params.BuildRightImageName());
+		return;
 	}
-	else
-	{
-		*leftCap >> left;
-		*rightCap >> right;
-	}
+
+	*leftCap >> left;
+	*rightCap >> right;
 
 	videoWorking = true;
 

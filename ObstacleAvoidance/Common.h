@@ -8,9 +8,9 @@
 //	*	if you want more things to be controlable w/o recompilation
 //
 //	Author: Dmitry Rabinovich
-//	Copyright (C) 2016 Technion, IIT
+//	Copyright (C) 2016-2017 Technion, IIT
 //
-//	2016, November 19
+//	2017, January 10
 //
 //M*/
 
@@ -76,6 +76,7 @@ private:
 	static const std::string RightSuffix;
 
 	mutable int currentImageIndex = 0;
+	mutable int imagesReadPerIndex = 1;
 
 	bool recordMode = false;
 	bool replayMode = false;
@@ -136,7 +137,7 @@ public:
 ////// METHODS /////
 	int GetHorizonHeight() const
 	{
-		return LEFT_IMAGE_RESIZED_HEIGHT / 2;
+		return heightOfHorizonSet ? heightOfHorizon - 1 : (LEFT_IMAGE_RESIZED_HEIGHT / 2);
 	}
 
 	bool IsInRecordMode() const
@@ -151,7 +152,7 @@ public:
 
 	bool ShouldProcessVideo() const
 	{
-		return startedProcessing;
+		return !IsInReplayMode() || startedProcessing;
 	}
 
 	bool IsInDebugMathMode() const
@@ -171,7 +172,20 @@ public:
 
 	int PrepareForNextImage() const
 	{
-		return ++currentImageIndex;
+		int addToIndex = 1;
+		if (IsInReplayMode())
+		{
+			if (--imagesReadPerIndex)
+			{
+				addToIndex = 0;
+			}
+			else
+			{
+				imagesReadPerIndex = 2;
+			}
+		}
+
+		return (currentImageIndex += addToIndex);
 	}
 
 	bool RecordingStopped() const

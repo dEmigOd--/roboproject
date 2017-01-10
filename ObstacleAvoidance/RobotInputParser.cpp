@@ -4,9 +4,9 @@
 //	implements input parameter parsing
 //
 //	Author: Dmitry Rabinovich
-//	Copyright (C) 2016 Technion, IIT
+//	Copyright (C) 2016-2017 Technion, IIT
 //
-//	2016, November 19
+//	2017, January 10
 //
 //M*/
 
@@ -73,6 +73,13 @@ RunningParameters RobotInputParser::ParseInputArguments(int argc, char* argv[])
 			continue;
 		}
 
+		if (CaseInsensitiveStringCompare(argv[currentArgN], "--setHorizonHeight"))
+		{
+			params.heightOfHorizon = atoi(argv[++currentArgN]);
+			params.heightOfHorizonSet = true;
+			continue;
+		}
+
 //////////////////////////// PRODUCTION PARAMETERS ///////////////////////////////
 		if (CaseInsensitiveStringCompare(argv[currentArgN], "--workDir"))
 		{
@@ -128,7 +135,7 @@ RunningParameters RobotInputParser::ParseInputArguments(int argc, char* argv[])
 
 		if (CaseInsensitiveStringCompare(argv[currentArgN], "--rightCameraIndex"))
 		{
-			params.leftCameraIdx = atoi(argv[++currentArgN]);
+			params.rightCameraIdx = atoi(argv[++currentArgN]);
 			continue;
 		}
 

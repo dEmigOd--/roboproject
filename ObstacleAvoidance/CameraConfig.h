@@ -48,9 +48,13 @@ class CalibratedConfig
 		cameraSettings["distortion_coefficients"] >> distortion;
 	}
 
+protected:
+	const RunningParameters& params;
+
 public:
 	// Rreference frame is in the middle between two cameras !!
 	CalibratedConfig(const RunningParameters& params, int cameraId, const cv::Vec3d& cameraPosition)
+		: params(params)
 	{
 		ReadCameraData(params, cameraId);
 		cv::hconcat(cv::Mat::eye(3, 3, CV_64F), -cameraPosition, RTMatrix);
