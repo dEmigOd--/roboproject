@@ -8,9 +8,9 @@
 //	inhereted from pervious project
 //
 //	Author: ben, Dmitry Rabinovich
-//	Copyright (C) 2016 Technion, IIT
+//	Copyright (C) 2016-2017 Technion, IIT
 //
-//	2016, November 19
+//	2017, May 17
 //
 //M*/
 
@@ -52,6 +52,7 @@ private:
 
 	static el::Logger* logger;
 
+	int Speed() const;
 public:
 	RobotController(RunningParameters& params);
 	~RobotController();

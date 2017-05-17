@@ -22,6 +22,7 @@
 #include <queue>
 
 #include "Common.h"
+#include "RunningParameters.h"
 #include "RobotController.h"
 #include "ObstacleAvoider.h"
 

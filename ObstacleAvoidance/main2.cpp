@@ -25,6 +25,8 @@
 #include "Logger.h"
 #include "Common.h"
 #include "RobotInputParser.h"
+#include "DefaultParameters.h"
+#include "RunningParameters.h"
 #include "RobotManeuver.h"
 #include "RobotVision.h"
 
@@ -38,6 +40,11 @@
 #define KEY_STOP 65461 // KP_5
 #define KEY_RIGHT_SHARP 65462 // KP_6
 
+// statics initialization
+std::map<MatchingAlgorithm, std::string> MatchingAlgorithmMapper::names;
+std::map<std::string, MatchingAlgorithm> MatchingAlgorithmMapper::values;
+bool MatchingAlgorithmMapper::initialized;
+
 std::mutex syncronizer;
 // create logger for main part
 el::Logger* logger = Logger::GetLogger("main");
@@ -47,6 +54,10 @@ struct CallbackData
 	cv::Mat disparity;
 	RunningParameters params;
 	std::shared_ptr<DepthCalculator> depthCalculator;
+
+	CallbackData(const RunningParameters& params)
+		: params(params)
+	{}
 };
 
 void InitializeUserControllerValues(RunningParameters& params)
@@ -61,7 +72,6 @@ void InitializeUserControllerValues(RunningParameters& params)
 	params.LAPLACE_KERN = 3;
 	params.DIST_THRESHOLD = 8;
 	params.tresh = 80;
-	params.smoothTurn = true;
 }
 
 void TrackBarFunc(int num, void* x)
@@ -125,9 +135,9 @@ int RunRobot(RobotManeuver& robotManeuver, RobotVision& robotVision, CallbackDat
 	bool navMode(true);
 	int key = cv::waitKey(0);
 
-	if (data.params.debugCameras)
+	if (data.params.ShouldDebugCameras())
 	{
-		data.params.startedProcessing = true;
+		data.params.StartProcessing();
 	}
 
 	while (true)
@@ -186,13 +196,13 @@ int RunRobot(RobotManeuver& robotManeuver, RobotVision& robotVision, CallbackDat
 					robotManeuver.ImmediateStop();
 					break;
 				case KEY_LEFT:
-					data.params.smoothTurn ? robotManeuver.SmoothLeft() : robotManeuver.Left();
+					data.params.rip.GetValue<bool>(RobotParameters::smoothTurn) ? robotManeuver.SmoothLeft() : robotManeuver.Left();
 					break;
 				case KEY_LEFT_SHARP:
 					robotManeuver.Turn90Deg(RobotManeuver::LEFT);
 					break;
 				case KEY_RIGHT:
-					data.params.smoothTurn ? robotManeuver.SmoothRight() : robotManeuver.Right();
+					data.params.rip.GetValue<bool>(RobotParameters::smoothTurn) ? robotManeuver.SmoothRight() : robotManeuver.Right();
 					break;
 				case KEY_RIGHT_SHARP:
 					robotManeuver.Turn90Deg(RobotManeuver::RIGHT);
@@ -222,9 +232,9 @@ int RunRobot(RobotManeuver& robotManeuver, RobotVision& robotVision, CallbackDat
 			case 'k': // 107
 				robotManeuver.Stop();
 				navMode = true;
-				if (data.params.debugCameras)
+				if (data.params.ShouldDebugCameras())
 				{
-					data.params.startedProcessing = false;
+					data.params.StopProcessing();
 				}
 			break;
 			case 'r':
@@ -241,17 +251,17 @@ int RunRobot(RobotManeuver& robotManeuver, RobotVision& robotVision, CallbackDat
 					eventsCounter = 0;
 					navMode = false;
 					robotManeuver.Forward();
-					if (data.params.debugCameras)
+					if (data.params.ShouldDebugCameras())
 					{
-						data.params.startedProcessing = true;
+						data.params.StartProcessing();
 					}
 				}
 				break;
 			case 't': // smooth turns
-				data.params.smoothTurn = true;
+				data.params.SetTurnSmoothness(true);
 				break;
 			case 'y': // hard turns
-				data.params.smoothTurn = false;
+				data.params.SetTurnSmoothness(false);
 			default:
 				break;
 		}
@@ -267,36 +277,45 @@ int main(int argc, char* argv[])
 
 	logger->info("------------- New Session -------------");
 
-	CallbackData data;
-	data.params = RobotInputParser::ParseInputArguments(argc, argv);
+	CallbackData data(RobotInputParser(argc, argv));
+	data.params.rip.SetDefaultValues(DefaultParameters().CreateDefaultParameters());
 
 	InitializeUserControllerValues(data.params);
 
-	cv::namedWindow(Constants::MatchesWindowName, CV_WINDOW_NORMAL);
-	cv::namedWindow(Constants::RightWindowName, CV_WINDOW_NORMAL);
-	cv::namedWindow(Constants::LeftWindowName, CV_WINDOW_NORMAL);
+#define Constant data.params.rip
+	auto matchesWindowName = Constant.GetValue<std::string>(RobotParameters::MatchesWindowName);
+	auto leftWindowName = Constant.GetValue<std::string>(RobotParameters::MatchesWindowName);
+	auto rightWindowName = Constant.GetValue<std::string>(RobotParameters::MatchesWindowName);
 
-	cv::resizeWindow(Constants::LeftWindowName, 
-		Constants::IMAGE_STRETCH_FACTOR * data.params.LEFT_IMAGE_RESIZED_WIDTH / Constants::IMAGE_COMPRESS_FACTOR,
-		Constants::IMAGE_STRETCH_FACTOR * data.params.LEFT_IMAGE_RESIZED_HEIGHT / Constants::IMAGE_COMPRESS_FACTOR);
-	cv::resizeWindow(Constants::RightWindowName, 
-		Constants::IMAGE_STRETCH_FACTOR * data.params.RIGHT_IMAGE_RESIZED_WIDTH / Constants::IMAGE_COMPRESS_FACTOR,
-		Constants::IMAGE_STRETCH_FACTOR * data.params.RIGHT_IMAGE_RESIZED_HEIGHT / Constants::IMAGE_COMPRESS_FACTOR);
+	cv::namedWindow(matchesWindowName, CV_WINDOW_NORMAL);
+	cv::namedWindow(rightWindowName, CV_WINDOW_NORMAL);
+	cv::namedWindow(leftWindowName, CV_WINDOW_NORMAL);
 
-	cv::createTrackbar("THRESHOLD", Constants::MatchesWindowName, &data.params.THRESHOLD, 120, TrackBarFunc);
-	cv::createTrackbar("DENSITY", Constants::MatchesWindowName, &data.params.DENSITY, 20, TrackBarFunc);
-	cv::createTrackbar("NPTS", Constants::MatchesWindowName, &data.params.NPTS, 100, TrackBarFunc);
-	cv::createTrackbar("EVENT_THRESHOLD", Constants::MatchesWindowName, &data.params.EVENT_THRESHOLD, 10, TrackBarFunc);
-	cv::createTrackbar("BLOCK_SIZE", Constants::MatchesWindowName, &data.params.nBlockSize, 20, TrackBarFuncOdd, &data.params.nBlockSize);
-	cv::createTrackbar("ERROR_THRESHOLD", Constants::MatchesWindowName, &data.params.tresh, Constants::CONVERT_TO_PERCENT, TrackBarFuncTresh, &data.params.ERROR_THRESHOLD);
-	cv::createTrackbar("GAUSS_SIGMA", Constants::MatchesWindowName, &data.params.GAUSS_SIGMA, 10, TrackBarFuncOdd, &data.params.GAUSS_SIGMA);
-	cv::createTrackbar("LAPLACE_KERN", Constants::MatchesWindowName, &data.params.LAPLACE_KERN, 10, TrackBarFuncOdd, &data.params.LAPLACE_KERN);
-	cv::createTrackbar("OBST_THRESHOLD", Constants::MatchesWindowName, &data.params.OBST_THRESHOLD, 25, TrackBarFunc);
+	int stretchFactor = Constant.GetValue<int>(RobotParameters::IMAGE_STRETCH_FACTOR),
+		compressFactor = Constant.GetValue<int>(RobotParameters::IMAGE_COMPRESS_FACTOR);
+
+	cv::resizeWindow(leftWindowName,
+		stretchFactor * Constant.GetValue<int>(RobotParameters::LEFT_IMAGE_RESIZED_WIDTH) / compressFactor,
+		stretchFactor * Constant.GetValue<int>(RobotParameters::LEFT_IMAGE_RESIZED_HEIGHT) / compressFactor);
+	cv::resizeWindow(rightWindowName,
+		stretchFactor * Constant.GetValue<int>(RobotParameters::RIGHT_IMAGE_RESIZED_WIDTH) / compressFactor,
+		stretchFactor * Constant.GetValue<int>(RobotParameters::RIGHT_IMAGE_RESIZED_HEIGHT) / compressFactor);
+
+	cv::createTrackbar("THRESHOLD", matchesWindowName, &data.params.THRESHOLD, 120, TrackBarFunc);
+	cv::createTrackbar("DENSITY", matchesWindowName, &data.params.DENSITY, 20, TrackBarFunc);
+	cv::createTrackbar("NPTS", matchesWindowName, &data.params.NPTS, 100, TrackBarFunc);
+	cv::createTrackbar("EVENT_THRESHOLD", matchesWindowName, &data.params.EVENT_THRESHOLD, 10, TrackBarFunc);
+	cv::createTrackbar("BLOCK_SIZE", matchesWindowName, &data.params.nBlockSize, 20, TrackBarFuncOdd, &data.params.nBlockSize);
+	cv::createTrackbar("ERROR_THRESHOLD", matchesWindowName, &data.params.tresh, Constants::CONVERT_TO_PERCENT, TrackBarFuncTresh, &data.params.ERROR_THRESHOLD);
+	cv::createTrackbar("GAUSS_SIGMA", matchesWindowName, &data.params.GAUSS_SIGMA, 10, TrackBarFuncOdd, &data.params.GAUSS_SIGMA);
+	cv::createTrackbar("LAPLACE_KERN", matchesWindowName, &data.params.LAPLACE_KERN, 10, TrackBarFuncOdd, &data.params.LAPLACE_KERN);
+	cv::createTrackbar("OBST_THRESHOLD", matchesWindowName, &data.params.OBST_THRESHOLD, 25, TrackBarFunc);
+#undef Constants
 
 	RobotManeuver robotManeuver(data.params);
 	RobotVision robotVision(syncronizer, data.params);
 
-	cv::setMouseCallback(Constants::MatchesWindowName, CallBackFunc, (void*) &data);
+	cv::setMouseCallback(matchesWindowName, CallBackFunc, (void*) &data);
 
 	std::unique_lock<std::mutex> locker(syncronizer);
 	robotVision.condition.wait(locker, [&robotVision]

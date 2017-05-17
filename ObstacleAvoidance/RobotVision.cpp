@@ -6,7 +6,7 @@
 //	Author: ben, Dmitry Rabinovich
 //	Copyright (C) 2016-2017 Technion, IIT
 //
-//	2017, January 10
+//	2017, May 17
 //
 //M*/
 
@@ -33,7 +33,7 @@ RobotVision::RobotVision(std::mutex& acquisitionLock, RunningParameters& params)
 
 void RobotVision::InitializeDisparityObject()
 {
-	switch (params.useOpenCVAlgorihmForMatching)
+	switch (params.GetValue<MatchingAlgorithm>(RobotParameters::useOpenCVAlgorihmForMatching))
 	{
 		case MatchingAlgorithm::OPENCV_SGBM:
 			dispObj = std::unique_ptr<Disparity>(new SGBMDisparity(params));
@@ -141,7 +141,7 @@ RobotVision::SideEnum RobotVision::ObstaclePresent()
 	}
 
 	cv::Mat disparity = CalculateNewDisparity();
-	FrontPointCounter pc(disparity.cols, params.AcceptableDepthOffset);
+	FrontPointCounter pc(disparity.cols, params.GetValue<int>(RobotParameters::AcceptableDepthOffset));
 
 	for (int i = 0; i < disparity.rows; i++)
 	{
@@ -250,23 +250,26 @@ void RobotVision::OpenVideoCap()
 {
 	logger->debug("Initializing cameras ...");
 
-	cv::Vec3d leftCameraPosition = cv::Vec3d({ -Constants::OPTICAL_AXIS_DISTANCE / 2, 0.0, 0.0 });
-	cv::Vec3d rightCameraPosition = cv::Vec3d({ Constants::OPTICAL_AXIS_DISTANCE / 2, 0.0, 0.0 });
+	cv::Vec3d leftCameraPosition = cv::Vec3d({ -params.GetValue<double>(RobotParameters::OPTICAL_AXIS_DISTANCE) / 2, 0.0, 0.0 });
+	cv::Vec3d rightCameraPosition = cv::Vec3d({ params.GetValue<double>(RobotParameters::OPTICAL_AXIS_DISTANCE) / 2, 0.0, 0.0 });
+
+	int leftCameraIdx = params.GetValue<int>(RobotParameters::leftCameraIdx);
+	int rightCameraIdx = params.GetValue<int>(RobotParameters::rightCameraIdx);
 
 	if (!params.IsInReplayMode())
 	{
 #ifdef __linux__
-		leftCap = std::unique_ptr<CameraModel>(new CameraModel(params, params.leftCameraIdx, leftCameraPosition));
-		rightCap = std::unique_ptr<CameraModel>(new CameraModel(params, params.rightCameraIdx, rightCameraPosition));
+		leftCap = std::unique_ptr<CameraModel>(new CameraModel(params, leftCameraIdx, leftCameraPosition));
+		rightCap = std::unique_ptr<CameraModel>(new CameraModel(params, rightCameraIdx, rightCameraPosition));
 #else
-		leftCap = std::unique_ptr<CameraModel>(new MonoCameraView(params, params.leftCameraIdx, leftCameraPosition));
-		rightCap = std::unique_ptr<CameraModel>(new MonoCameraView(params, params.rightCameraIdx, rightCameraPosition));
+		leftCap = std::unique_ptr<CameraModel>(new MonoCameraView(params, leftCameraIdx, leftCameraPosition));
+		rightCap = std::unique_ptr<CameraModel>(new MonoCameraView(params, rightCameraIdx, rightCameraPosition));
 #endif
 	}
 	else
 	{
-		leftCap = std::unique_ptr<CameraModel>(new RecordedCameraView(params, params.leftCameraIdx, leftCameraPosition));
-		rightCap = std::unique_ptr<CameraModel>(new RecordedCameraView(params, params.rightCameraIdx, rightCameraPosition));
+		leftCap = std::unique_ptr<CameraModel>(new RecordedCameraView(params, leftCameraIdx, leftCameraPosition));
+		rightCap = std::unique_ptr<CameraModel>(new RecordedCameraView(params, rightCameraIdx, rightCameraPosition));
 	}
 
 	if (!rightCap->isOpened() || !leftCap->isOpened())  // check if we succeeded
@@ -276,13 +279,13 @@ void RobotVision::OpenVideoCap()
 	}
 
 	// some wonderful properties of ld, which was unable to resolve those static const ints to ints
-	logger->info("Setting right camera FOV to %v-by-%v", (int)params.RIGHT_CAMERA_FOV_WIDTH, (int)params.RIGHT_CAMERA_FOV_HEIGHT);
-	rightCap->set(CV_CAP_PROP_FRAME_WIDTH, params.RIGHT_CAMERA_FOV_WIDTH);
-	rightCap->set(CV_CAP_PROP_FRAME_HEIGHT, params.RIGHT_CAMERA_FOV_HEIGHT);
+	logger->info("Setting right camera FOV to %v-by-%v", params.GetValue<int>(RobotParameters::RIGHT_CAMERA_FOV_WIDTH), params.GetValue<int>(RobotParameters::RIGHT_CAMERA_FOV_HEIGHT));
+	rightCap->set(CV_CAP_PROP_FRAME_WIDTH, params.GetValue<int>(RobotParameters::RIGHT_CAMERA_FOV_WIDTH));
+	rightCap->set(CV_CAP_PROP_FRAME_HEIGHT, params.GetValue<int>(RobotParameters::RIGHT_CAMERA_FOV_HEIGHT));
 
-	logger->info("Setting left camera FOV to %v-by-%v", (int)params.LEFT_CAMERA_FOV_WIDTH, (int)params.LEFT_CAMERA_FOV_HEIGHT);
-	leftCap->set(CV_CAP_PROP_FRAME_WIDTH, params.LEFT_CAMERA_FOV_WIDTH);
-	leftCap->set(CV_CAP_PROP_FRAME_HEIGHT, params.LEFT_CAMERA_FOV_HEIGHT);
+	logger->info("Setting left camera FOV to %v-by-%v", params.GetValue<int>(RobotParameters::LEFT_CAMERA_FOV_WIDTH), params.GetValue<int>(RobotParameters::LEFT_CAMERA_FOV_HEIGHT));
+	leftCap->set(CV_CAP_PROP_FRAME_WIDTH, params.GetValue<int>(RobotParameters::LEFT_CAMERA_FOV_WIDTH));
+	leftCap->set(CV_CAP_PROP_FRAME_HEIGHT, params.GetValue<int>(RobotParameters::LEFT_CAMERA_FOV_HEIGHT));
 
 	depthCalculator = std::shared_ptr<DepthCalculator>(new DepthCalculator(leftCap, rightCap));
 	dispObj->SetRangeFinder(new DisparityRangeFinder(params, depthCalculator));
@@ -312,8 +315,8 @@ void RobotVision::SafeCaptureFromCam()
 
 	videoWorking = true;
 
-	resize(left, left, cv::Size(params.LEFT_IMAGE_RESIZED_WIDTH, params.LEFT_IMAGE_RESIZED_HEIGHT));
-	resize(right, right, cv::Size(params.RIGHT_IMAGE_RESIZED_WIDTH, params.RIGHT_IMAGE_RESIZED_HEIGHT));
+	resize(left, left, cv::Size(params.GetValue<int>(RobotParameters::LEFT_IMAGE_RESIZED_WIDTH), params.GetValue<int>(RobotParameters::LEFT_IMAGE_RESIZED_HEIGHT)));
+	resize(right, right, cv::Size(params.GetValue<int>(RobotParameters::RIGHT_IMAGE_RESIZED_WIDTH), params.GetValue<int>(RobotParameters::RIGHT_IMAGE_RESIZED_HEIGHT)));
 
 	cvtColor(left, left, CV_BGR2GRAY);
 	cvtColor(right, right, CV_BGR2GRAY);
@@ -327,7 +330,7 @@ void RobotVision::CaptureFromCam()
 	{
 		SafeCaptureFromCam();
 
-		std::this_thread::sleep_for(params.frequency);
+		std::this_thread::sleep_for(params.Frequency());
 	}
 }
 

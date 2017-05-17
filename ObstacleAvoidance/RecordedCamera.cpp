@@ -7,7 +7,7 @@
 //	Author: Dmitry Rabinovich
 //	Copyright (C) 2017 Technion, IIT
 //
-//	2017, January 10
+//	2017, May 17
 //
 //M*/
 
@@ -24,7 +24,7 @@ cv::VideoCapture& RecordedCameraView::operator >> (CV_OUT cv::Mat& image)
 		logger->trace("Reading image %v", PadWithZeroes(imageIndexToRead, 4));
 	}
 
-	image = cv::imread((_id == params.leftCameraIdx) ? 
+	image = cv::imread((_id == params.GetValue<int>(RobotParameters::leftCameraIdx)) ? 
 		params.BuildLeftImageName() : 
 		params.BuildRightImageName());
 

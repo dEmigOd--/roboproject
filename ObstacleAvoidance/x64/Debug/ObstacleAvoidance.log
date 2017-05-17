@@ -49,7 +49,5 @@
          46 file(s) copied.
   main2.cpp
 c:\users\dmitry.ra\desktop\studies\spring 2015-2016\236754\obstacleavoidance\obstacleavoidance\easylogging++.h(973): warning C4800: 'BOOL': forcing value to bool 'true' or 'false' (performance warning)
-  RobotManeuver.cpp
-c:\users\dmitry.ra\desktop\studies\spring 2015-2016\236754\obstacleavoidance\obstacleavoidance\easylogging++.h(973): warning C4800: 'BOOL': forcing value to bool 'true' or 'false' (performance warning)
-  Generating Code...
   ObstacleAvoidance.vcxproj -> C:\Users\dmitry.ra\Desktop\Studies\Spring 2015-2016\236754\ObstacleAvoidance\x64\Debug\ObstacleAvoidance.exe
+  ObstacleAvoidance.vcxproj -> C:\Users\dmitry.ra\Desktop\Studies\Spring 2015-2016\236754\ObstacleAvoidance\x64\Debug\ObstacleAvoidance.pdb (Full PDB)

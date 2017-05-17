@@ -4,9 +4,9 @@
 //	implementation
 //
 //	Author: ben, Dmitry Rabinovich
-//	Copyright (C) 2016 Technion, IIT
+//	Copyright (C) 201-2017 Technion, IIT
 //
-//	2016, November 19
+//	2017, May 17
 //
 //M*/
 
@@ -21,16 +21,21 @@ RobotController::RobotController(RunningParameters& params)
 	p = PWM::create(params);
 }
 
+int RobotController::Speed() const
+{
+	return params.GetValue<int>(RobotParameters::speed);
+}
+
 void RobotController::Forward()
 {
 	logger->verbose(2, "FORWARD command issued");
-	SetNewWheelSpeed(params.speed, params.speed);
+	SetNewWheelSpeed(Speed(), Speed());
 }
 
 void RobotController::Backward()
 {
 	logger->verbose(2, "BACKWARD command issued");
-	SetNewWheelSpeed(-params.speed, -params.speed);
+	SetNewWheelSpeed(-Speed(), -Speed());
 }
 
 void RobotController::Stop()
@@ -51,10 +56,10 @@ int RobotController::GetNewTurningSpeed(TurningAngle angle)
 	switch (angle)
 	{
 		case RobotController::REGULAR:
-			newSpeed = (int)(params.speed / params.spinMultiplierOnTurns);
+			newSpeed = (int)(Speed() / params.GetValue<double>(RobotParameters::spinMultiplierOnTurns));
 			break;
 		case RobotController::TURBO:
-			newSpeed = -params.speed;
+			newSpeed = -Speed();
 		default:
 			break;
 	}
@@ -65,14 +70,14 @@ void RobotController::Right(TurningAngle angle)
 {
 	int rightSpeed = GetNewTurningSpeed(angle);
 	logger->verbose(2, "TURN RIGHT %v command issued", angle);
-	SetNewWheelSpeed(params.speed, rightSpeed);
+	SetNewWheelSpeed(Speed(), rightSpeed);
 }
 
 void RobotController::Left(TurningAngle angle)
 {
 	int leftSpeed = GetNewTurningSpeed(angle);
 	logger->verbose(2, "TURN LEFT %v command issued", angle);
-	SetNewWheelSpeed(leftSpeed, params.speed);
+	SetNewWheelSpeed(leftSpeed, Speed());
 }
 
 void RobotController::SetNewWheelSpeed(int leftSpeed, int rightSpeed)
@@ -90,6 +95,6 @@ void RobotController::SetNewWheelSpeed(int leftSpeed, int rightSpeed)
 void RobotController::SetSpeed(int newSpeed)
 {
 	logger->verbose(2, "SET SPEED %v command issued", newSpeed);
-	params.speed = newSpeed;
+	params.rip.SetValue(RobotParameters::speed, CastTo<std::string>(newSpeed));
 }
 

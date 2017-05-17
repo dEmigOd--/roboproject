@@ -57,22 +57,24 @@ public:
 		const int NUM_BINS = 180 / 5 + 1;
 
 		// return saved values in order not to recalculate every single time on constant speed
-		if (params.speed != savedSpeed)
+		if (params.GetValue<int>(RobotParameters::speed) != savedSpeed)
 		{
-			savedSpeed = params.speed;
-			double actualSpeedInMm = savedSpeed * params.speedUnitInMm;
+			savedSpeed = params.GetValue<int>(RobotParameters::speed);
+			double actualSpeedInMm = savedSpeed * params.GetValue<int>(RobotParameters::speedUnitInMm);
 
 			// note there is always safe turning angle of 90 deg
 			// we need to move at least half chassis + wheel + some safe distance to obstacle
-			double minXDisplacement = Constants::OBSTACLE_DISTANCE + (Constants::CHASSIS_WIDTH + Constants::WHEEL_WIDTH) / 2;
+			double minXDisplacement = params.GetValue<double>(RobotParameters::OBSTACLE_DISTANCE) + 
+				(params.GetValue<double>(RobotParameters::CHASSIS_WIDTH) + params.GetValue<double>(RobotParameters::WHEEL_WIDTH)) / 2;
 
 			// those are interesting distances to the obstacle
-			double maxYDisplacement = Constants::FARTHEST_DETECTABLE_RANGE * actualSpeedInMm;
+			double maxYDisplacement = params.GetValue<double>(RobotParameters::FARTHEST_DETECTABLE_RANGE) * actualSpeedInMm;
 
 			// work in 5 degree steps
 			double xDisplacement[NUM_BINS], yDisplacement[NUM_BINS];
 			double radianStep = M_PI * 5 / 180;
-			double smallTurnRadius = Constants::CHASSIS_WIDTH / (params.spinMultiplierOnTurns - 1);
+			double spinMultiplierOnTurns = params.GetValue<double>(RobotParameters::spinMultiplierOnTurns);
+			double smallTurnRadius = params.GetValue<double>(RobotParameters::CHASSIS_WIDTH) / (spinMultiplierOnTurns - 1);
 
 			// guess slope movement time in ms
 			savedSlopeMovementTime = 300;
@@ -87,8 +89,8 @@ public:
 
 				for (int i = 0; i < NUM_BINS; ++i)
 				{
-					xDisplacement[i] = (params.spinMultiplierOnTurns + 1) * smallTurnRadius * (1 - cos(i * radianStep)) + slopeTimeInSeconds * actualSpeedInMm * sin(i * radianStep);
-					yDisplacement[i] = (params.spinMultiplierOnTurns + 1) * smallTurnRadius * sin(i * radianStep) + slopeTimeInSeconds * actualSpeedInMm * cos(i * radianStep);
+					xDisplacement[i] = (spinMultiplierOnTurns + 1) * smallTurnRadius * (1 - cos(i * radianStep)) + slopeTimeInSeconds * actualSpeedInMm * sin(i * radianStep);
+					yDisplacement[i] = (spinMultiplierOnTurns + 1) * smallTurnRadius * sin(i * radianStep) + slopeTimeInSeconds * actualSpeedInMm * cos(i * radianStep);
 				}
 
 				// try to peak a non-severe angle
@@ -131,7 +133,7 @@ public:
 			// turning radius multiplied by angle divided by speed
 			savedTurningTime = ToMilliseconds(4 * smallTurnRadius * (goodAlternative * radianStep) / actualSpeedInMm);
 			// need yet to cover some distance in y direction [to the north]
-			savedForwardTime = ToMilliseconds((Constants::OBSTACLE_LENGTH + maxYDisplacement - yDisplacement[goodAlternative]) / actualSpeedInMm);
+			savedForwardTime = ToMilliseconds((params.GetValue<double>(RobotParameters::OBSTACLE_LENGTH) + maxYDisplacement - yDisplacement[goodAlternative]) / actualSpeedInMm);
 		}
 
 		turningTime = savedTurningTime;

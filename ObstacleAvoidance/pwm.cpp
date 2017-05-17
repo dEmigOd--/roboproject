@@ -4,9 +4,9 @@
 //	implements pwm-based commands to actually different (non-PWM) hardware
 //
 //	Author: Dmitry Rabinovich
-//	Copyright (C) 2016 Technion, IIT
+//	Copyright (C) 2016-2017 Technion, IIT
 //
-//	2016, November 19
+//	2017, May 17
 //
 //M*/
 
@@ -137,7 +137,7 @@ private:
 
 	bool ShouldRun(PWM::pwm_ptr ptr)const
 	{
-		return (params.shouldMove || !ptr->CouldBeStopped());
+		return (params.GetValue<bool>(RobotParameters::shouldMove) || !ptr->CouldBeStopped());
 	}
 public:
 	WrappingPWM(const RunningParameters& params)

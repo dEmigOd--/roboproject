@@ -25,21 +25,18 @@
     <Filter Include="Source Files\Parameters">
       <UniqueIdentifier>{8c319f44-0701-4e9f-b7d0-03286022160a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Executable">
+      <UniqueIdentifier>{3fead741-3033-4ada-bfd0-d13b11d67155}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Robot">
+      <UniqueIdentifier>{c158f931-386c-48b2-9b15-75c30b90ff68}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Robot">
+      <UniqueIdentifier>{4c4d99e5-32b7-453f-8848-87cdc97001b4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Disparity.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="pwm.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="RobotController.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="RobotManeuver.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="RobotVision.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="xstring.h">
@@ -52,15 +49,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Utils.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="motors.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="serial.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SerialPort.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ObstacleAvoider.h">
@@ -84,33 +72,48 @@
     <ClInclude Include="RobotInputParser.h">
       <Filter>Header Files\Parameters</Filter>
     </ClInclude>
+    <ClInclude Include="RecordedCamera.h">
+      <Filter>Header Files\Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="RobotParameters.h">
+      <Filter>Header Files\Parameters</Filter>
+    </ClInclude>
+    <ClInclude Include="CastTo.h">
+      <Filter>Header Files\Parameters</Filter>
+    </ClInclude>
+    <ClInclude Include="motors.h">
+      <Filter>Header Files\Robot</Filter>
+    </ClInclude>
+    <ClInclude Include="pwm.h">
+      <Filter>Header Files\Robot</Filter>
+    </ClInclude>
+    <ClInclude Include="RobotController.h">
+      <Filter>Header Files\Robot</Filter>
+    </ClInclude>
+    <ClInclude Include="RobotManeuver.h">
+      <Filter>Header Files\Robot</Filter>
+    </ClInclude>
+    <ClInclude Include="RobotVision.h">
+      <Filter>Header Files\Robot</Filter>
+    </ClInclude>
+    <ClInclude Include="serial.h">
+      <Filter>Header Files\Robot</Filter>
+    </ClInclude>
+    <ClInclude Include="SerialPort.h">
+      <Filter>Header Files\Robot</Filter>
+    </ClInclude>
+    <ClInclude Include="DefaultParameters.h">
+      <Filter>Header Files\Parameters</Filter>
+    </ClInclude>
+    <ClInclude Include="RunningParameters.h">
+      <Filter>Header Files\Parameters</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Disparity.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="main2.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="pwm.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="RobotController.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="RobotManeuver.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="RobotVision.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Logger.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="posix_serial.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="SerialPort.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="MonoCameraView.cpp">
@@ -119,11 +122,35 @@
     <ClCompile Include="CameraModel.cpp">
       <Filter>Source Files\Camera</Filter>
     </ClCompile>
-    <ClCompile Include="Constants.cpp">
-      <Filter>Source Files\Parameters</Filter>
-    </ClCompile>
     <ClCompile Include="RobotInputParser.cpp">
       <Filter>Source Files\Parameters</Filter>
+    </ClCompile>
+    <ClCompile Include="RecordedCamera.cpp">
+      <Filter>Source Files\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="main2.cpp">
+      <Filter>Source Files\Executable</Filter>
+    </ClCompile>
+    <ClCompile Include="Test.cpp">
+      <Filter>Source Files\Executable</Filter>
+    </ClCompile>
+    <ClCompile Include="posix_serial.cpp">
+      <Filter>Source Files\Robot</Filter>
+    </ClCompile>
+    <ClCompile Include="pwm.cpp">
+      <Filter>Source Files\Robot</Filter>
+    </ClCompile>
+    <ClCompile Include="RobotController.cpp">
+      <Filter>Source Files\Robot</Filter>
+    </ClCompile>
+    <ClCompile Include="RobotManeuver.cpp">
+      <Filter>Source Files\Robot</Filter>
+    </ClCompile>
+    <ClCompile Include="RobotVision.cpp">
+      <Filter>Source Files\Robot</Filter>
+    </ClCompile>
+    <ClCompile Include="SerialPort.cpp">
+      <Filter>Source Files\Robot</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -17,6 +17,7 @@
 
 #include "Disparity.h"
 #include "Common.h"
+#include "RunningParameters.h"
 #include "Utils.h"
 
 cv::Mat DepthCalculator::GetDepthFromStereo(const cv::Mat& LeftImagePts, const cv::Mat& RightImagePts) const
@@ -37,7 +38,7 @@ void AdjustDetectableRange(const RunningParameters& params, int& minDetectableDi
 
 												  // opencv demands num of detectable disparities to be a multiple of 16
 	int missingTo16 = (int)(unsigned)((minDetectableDisparity - maxDetectableDisparity) & constBitMask);
-	int couldBeAdded = params.LEFT_IMAGE_RESIZED_WIDTH + minDetectableDisparity - maxDetectableDisparity;
+	int couldBeAdded = params.GetValue<int>(RobotParameters::LEFT_IMAGE_RESIZED_WIDTH) + minDetectableDisparity - maxDetectableDisparity;
 
 	// adjust symmetrically in case we can't add enough pixels from both sides
 	if (missingTo16 > couldBeAdded)
@@ -50,7 +51,7 @@ void AdjustDetectableRange(const RunningParameters& params, int& minDetectableDi
 
 	// add missing pixels, since now there is enough room for the missing
 	int maxToAddOnLeft = minDetectableDisparity;
-	int maxToAddOnRight = params.LEFT_IMAGE_RESIZED_WIDTH - maxDetectableDisparity;
+	int maxToAddOnRight = params.GetValue<int>(RobotParameters::LEFT_IMAGE_RESIZED_WIDTH) - maxDetectableDisparity;
 
 	if (missingTo16 % 2)
 	{
@@ -88,7 +89,7 @@ int RangeFinder::GetMinDisparity() const
 
 int RangeFinder::GetMaxDisparity() const
 {
-	int minDisp, maxDisp = params.RIGHT_IMAGE_RESIZED_WIDTH;
+	int minDisp, maxDisp = params.GetValue<int>(RobotParameters::RIGHT_IMAGE_RESIZED_WIDTH);
 	AdjustDetectableRange(params, minDisp, maxDisp);
 
 	return maxDisp;
@@ -97,21 +98,25 @@ int RangeFinder::GetMaxDisparity() const
 
 void DisparityRangeFinder::DetectDisparities() const
 {
-	int widthDistanceBetweenTestPoints = params.RIGHT_IMAGE_RESIZED_WIDTH / params.NumWidthPixelsToTest;
-	int heightDistanceBetweenTestPoints = params.GetHorizonHeight() / params.NumHeightPixelsToTest;
-	int disparityDistance = widthDistanceBetweenTestPoints / params.DisparitiesToTestRatio;
+	int RightImageResizedWidth = params.GetValue<int>(RobotParameters::RIGHT_IMAGE_RESIZED_WIDTH);
+	int NumWidthPixelsToTest = params.GetValue<int>(RobotParameters::NumWidthPixelsToTest);
+	int DisparitiesToTestRatio = params.GetValue<int>(RobotParameters::DisparitiesToTestRatio);
 
-	int actualWidthPoints = params.RIGHT_IMAGE_RESIZED_WIDTH / widthDistanceBetweenTestPoints;
+	int widthDistanceBetweenTestPoints = RightImageResizedWidth / NumWidthPixelsToTest;
+	int heightDistanceBetweenTestPoints = params.GetHorizonHeight() / NumWidthPixelsToTest;
+	int disparityDistance = widthDistanceBetweenTestPoints / DisparitiesToTestRatio;
+
+	int actualWidthPoints = RightImageResizedWidth / widthDistanceBetweenTestPoints;
 	int actualHeightPoints = params.GetHorizonHeight() / heightDistanceBetweenTestPoints;
 
-	cv::Mat camLeftPts = cv::Mat::zeros(2, actualWidthPoints * actualHeightPoints * actualWidthPoints * params.DisparitiesToTestRatio, CV_64F),
-		camRightPts = cv::Mat::zeros(2, actualWidthPoints * actualHeightPoints * actualWidthPoints * params.DisparitiesToTestRatio, CV_64F); //?
+	cv::Mat camLeftPts = cv::Mat::zeros(2, actualWidthPoints * actualHeightPoints * actualWidthPoints * DisparitiesToTestRatio, CV_64F),
+		camRightPts = cv::Mat::zeros(2, actualWidthPoints * actualHeightPoints * actualWidthPoints * DisparitiesToTestRatio, CV_64F); //?
 
 	int indx = 0;
 	// prepare points to check
 	for (int row = 0; row < params.GetHorizonHeight(); row += heightDistanceBetweenTestPoints)
 	{
-		for (int col = 0; col < params.RIGHT_IMAGE_RESIZED_WIDTH; col += widthDistanceBetweenTestPoints)
+		for (int col = 0; col < RightImageResizedWidth; col += widthDistanceBetweenTestPoints)
 		{
 			for (int disparity = 0; disparity < col; disparity += disparityDistance)
 			{
@@ -128,10 +133,13 @@ void DisparityRangeFinder::DetectDisparities() const
 	// get depth from points
 	cv::Mat Pts3D = depthCalculator->GetDepthFromStereo(camLeftPts, camRightPts);
 
-	double farthest_detectable_distance = params.speed * params.speedUnitInMm * Constants::FARTHEST_DETECTABLE_RANGE;
-	double closest_detectable_distance = params.speed * params.speedUnitInMm * Constants::CLOSEST_DETECTABLE_RANGE;
+	int speed = params.GetValue<int>(RobotParameters::speed);
+	int speedUnitInMm = params.GetValue<int>(RobotParameters::speedUnitInMm);
 
-	minDisparity = params.RIGHT_CAMERA_FOV_WIDTH;
+	double farthest_detectable_distance = speed * speedUnitInMm * params.GetValue<double>(RobotParameters::FARTHEST_DETECTABLE_RANGE);
+	double closest_detectable_distance = speed * speedUnitInMm * params.GetValue<double>(RobotParameters::CLOSEST_DETECTABLE_RANGE);
+
+	minDisparity = params.GetValue<int>(RobotParameters::RIGHT_CAMERA_FOV_WIDTH);
 	maxDisparity = -1;
 
 	for (int res = 0; res < Pts3D.rows; ++res)
@@ -155,12 +163,12 @@ void DisparityRangeFinder::DetectDisparities() const
 
 	AdjustDetectableRange(params, minDisparity, maxDisparity);
 
-	lastCalculatedSpeed = params.speed;
+	lastCalculatedSpeed = speed;
 }
 
 int DisparityRangeFinder::GetMinDisparity() const
 {
-	if (params.speed != lastCalculatedSpeed)
+	if (params.GetValue<int>(RobotParameters::speed) != lastCalculatedSpeed)
 	{
 		DetectDisparities();
 	}
@@ -170,7 +178,7 @@ int DisparityRangeFinder::GetMinDisparity() const
 
 int DisparityRangeFinder::GetMaxDisparity() const
 {
-	if (params.speed != lastCalculatedSpeed)
+	if (params.GetValue<int>(RobotParameters::speed) != lastCalculatedSpeed)
 	{
 		DetectDisparities();
 	}
@@ -199,7 +207,7 @@ cv::Mat ThresholdEdges(const RunningParameters& params, cv::Mat& edges)
 	cv::medianBlur(edges, edges, 3);
 
 	// make edges much more visible
-	cv::threshold(edges, edgesThresh, params.THRESHOLD, Constants::MAX_COLOR, cv::THRESH_BINARY);
+	cv::threshold(edges, edgesThresh, params.THRESHOLD, params.GetValue<int>(RobotParameters::MAX_COLOR), cv::THRESH_BINARY);
 
 	return edgesThresh;
 }
@@ -214,8 +222,8 @@ void ExtractSignificantEdges(const RunningParameters& params, const cv::Mat& lef
 	edgesLeftThresh = ThresholdEdges(params, edgesLeft);
 	edgesRightThresh = ThresholdEdges(params, edgesRight);
 
-	cv::imshow(Constants::LeftWindowName, edgesLeftThresh);
-	cv::imshow(Constants::RightWindowName, edgesRightThresh);
+	cv::imshow(params.GetValue<std::string>(RobotParameters::LeftWindowName), edgesLeftThresh);
+	cv::imshow(params.GetValue<std::string>(RobotParameters::RightWindowName), edgesRightThresh);
 	cv::waitKey(1);
 }
 
